@@ -28,11 +28,11 @@ void sstmanager_open(sstmanager_t* manager);
 void sstmanager_flush(sstmanager_t* manager);
 void sstmanager_close(sstmanager_t* manager);
 
-void* sstmanager_createsst(sstmanager_t* manager);
+void sstmanager_createsst(sstmanager_t* manager);
 void sstmanager_addsst(sstmanager_t* manager,sstable_t* sst);
 void sstmanager_rmsst(sstmanager_t* manager,int id);
 
-void sstmanager_put(sstmanager_t* manager,data_t data);
+int sstmanager_put(sstmanager_t* manager,data_t data);
 data_t* sstmanager_get(sstmanager_t* manager,const char* key);
 
 #endif

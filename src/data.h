@@ -3,6 +3,7 @@
 
 #include "buffer.h"
 #include "common.h"
+#include "tinybloom.h"
 #include <stdio.h>
 
 #define FILE_MAX (10*1024*1024)
@@ -18,6 +19,7 @@ typedef struct sst_data
     char filename[128];
     FILE *file;
     buffer_t* buf;
+	bloom_filter* bfilter;
 }sst_data_t;
 
 void* sstdata_new(int id);

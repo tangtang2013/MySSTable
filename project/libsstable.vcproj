@@ -176,6 +176,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\tinybloom.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\xmalloc.c"
 				>
 			</File>
@@ -215,6 +219,10 @@
 			</File>
 			<File
 				RelativePath="..\src\stdint.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\tinybloom.h"
 				>
 			</File>
 			<File

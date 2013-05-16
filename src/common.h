@@ -4,6 +4,7 @@
 typedef struct data_item
 {
 	int key_len;
+	unsigned long hash_value;
 	char* key;
 
 	int value_len;

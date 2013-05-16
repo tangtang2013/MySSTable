@@ -135,7 +135,7 @@ void buffer_putdata(struct buffer *b, struct data_item* d)
 {
 	int len;
 	len = d->key_len + d->value_len;
-	if(b->NUL + len + 21 >= b->buflen)
+	if(b->NUL + len + 21 >= b->buflen)//21 is the other member of data_item:int int int int64 char = 21
 		_buffer_extendby(b, 1024);
 	buffer_putint(b,len);
 	buffer_putint(b,d->key_len);
@@ -145,6 +145,18 @@ void buffer_putdata(struct buffer *b, struct data_item* d)
 	buffer_putnstr(b,d->key,d->key_len);
 	buffer_putnstr(b,d->value,d->value_len);
 
+}
+
+void buffer_putfilter( struct buffer *b,bloom_filter* bfilter )
+{
+	int len;
+	len = bfilter->filter_size * sizeof(unsigned) + sizeof(bfilter->filter_size) 
+		 + sizeof(bfilter->num_buckets);
+	if (len > b->buflen)
+		_buffer_extendby(b, len + 1024);
+	buffer_putint(b,bfilter->filter_size);
+	buffer_putint(b,bfilter->num_buckets);
+	buffer_putnstr(b,bfilter->filter,bfilter->filter_size * sizeof(unsigned));
 }
 
 void buffer_scatf(struct buffer *b, const char *fmt, ...)
@@ -245,4 +257,21 @@ struct data_item* buffer_getdata( struct buffer *b )
 	data->addr[data->key_len + 1] = 0;
 	data->addr[data->key_len + data->value_len + 2] = 0;
 	return data;
+}
+
+bloom_filter* buffer_getfilter( struct buffer *b )
+{
+	bloom_filter* bfilter;
+	int len;
+	char* buf;
+	bfilter= (bloom_filter*)malloc(sizeof(bloom_filter));;
+	bfilter->filter_size = buffer_getint(b);
+	bfilter->num_buckets = buffer_getint(b);
+
+	len = bfilter->filter_size * sizeof(unsigned);
+	bfilter->filter = malloc(len);
+
+	buf = buffer_getnstr(b,len);
+	memcpy(bfilter->filter,buf,len);
+	return bfilter;
 }

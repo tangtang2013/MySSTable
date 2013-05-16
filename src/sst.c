@@ -35,7 +35,11 @@ void sst_flush(sstable_t* sst)
 
 void sst_close(sstable_t* sst)
 {
-    sstdata_free(sst->sstdata);
+	if (sst->status != SNULL)
+	{
+		sstdata_free(sst->sstdata);
+	}
+    
 	xfree(sst);
 }
 

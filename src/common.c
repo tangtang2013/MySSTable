@@ -1,4 +1,5 @@
 #include "common.h"
+#include "PMurHash.h"
 #include <stdio.h>
 
 void* create_data(const char* key, int key_len, const char* value, int value_len, char type)
@@ -17,6 +18,8 @@ void* create_data(const char* key, int key_len, const char* value, int value_len
 	data->addr[data->key_len + data->value_len + 2] = 0;
 	data->version = _time64(NULL);
 
+	data->hash_value = PMurHash32(0,data->key,data->key_len);
+
 	return data;   
 }
 
@@ -30,6 +33,7 @@ void* clone_data(data_t* data)
 	clone->key_len = data->key_len;
 	clone->value_len = data->value_len;
 	clone->version = data->version;
+	clone->hash_value = data->hash_value;
 
 	clone->key = clone->addr + 1;
 	clone->value = clone->addr + 2 + clone->key_len;

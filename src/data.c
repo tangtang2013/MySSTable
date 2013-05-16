@@ -7,10 +7,13 @@ void* sstdata_new(int id)
     sst_data_t* sstdata = (sst_data_t*)xmalloc(sizeof(sst_data_t));
     memset(sstdata,0,sizeof(sst_data_t));
     sstdata->id = id;
+	sstdata->max = 1024;
 
     memset(sstdata->filename,0,128);
     sprintf(sstdata->filename,"sst%06d.data",sstdata->id); 
+
     sstdata->buf = buffer_new(1024);
+	sstdata->bfilter = create_bfilter(sstdata->max);
 
 	sstdata->key_num = -1;	//represent the data structure varie is in not initialized status
     
@@ -28,7 +31,6 @@ void sstdata_open(sst_data_t* sstdata)
     if(info.st_size <12)
     {
         sstdata->key_num = 0;
-        sstdata->max = 1024 * 1024;
         __INFO("file content error:%s",sstdata->filename);
     }
     else
@@ -70,7 +72,7 @@ void sstdata_build(sst_data_t* sstdata)
         __PANIC("file open failed -- exiting:%s",sstdata->filename);
         
     sstdata->key_num = 0;
-    sstdata->max = 1024;
+
     sstdata->keys = (data_t*)xmalloc(1024 * sizeof(data_t*));
 }
 
@@ -84,6 +86,8 @@ void sstdata_flush(sst_data_t* sstdata)
     __INFO("buffer NUL:%d\n",sstdata->buf->NUL);
     ret = fwrite(buffer_detach(sstdata->buf),1,sstdata->buf->NUL,sstdata->file);
     __INFO("index flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
+
+	//flush bloomfilter
 	
 	buffer_clear(sstdata->buf);
 	for (i=0; i<sstdata->key_num; i++)
@@ -112,6 +116,11 @@ void sstdata_free(sst_data_t* sstdata)
 
 	if(sstdata->keys)
 		xfree(sstdata->keys);
+
+	if (sstdata->bfilter)
+	{
+		destroy_bfilter(sstdata->bfilter);
+	}
 }
 
 int sstdata_put(sst_data_t* sstdata,data_t data)
@@ -120,6 +129,7 @@ int sstdata_put(sst_data_t* sstdata,data_t data)
     if(sstdata->max > sstdata->key_num)
     {
         temp = clone_data(&data);
+		bfilter_add(sstdata->bfilter,&data.hash_value);
         sstdata->keys[sstdata->key_num] = temp;
         sstdata->key_num++;
         return 0;
@@ -134,6 +144,13 @@ int sstdata_put(sst_data_t* sstdata,data_t data)
 data_t* sstdata_get(sst_data_t* sstdata,const char* key)
 {
     int i;
+	int hash_value;
+
+	hash_value = PMurHash32(0,key,strlen(key));
+	if (!bfilter_check(sstdata->bfilter,&hash_value))
+	{
+		return NULL;
+	}
     
     for(i=0; i<sstdata->key_num; i++)
     {

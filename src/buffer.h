@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "stdint.h"
 #include "common.h"
+#include "tinybloom.h"
 
 typedef struct buffer {
 	char *buf;
@@ -27,12 +28,15 @@ void buffer_scatf(struct buffer *b, const char *fmt, ...);
 void buffer_putlong(struct buffer *b, uint64_t val);
 void buffer_putshort(struct buffer *b, short val);
 void buffer_putdata(struct buffer *b, struct data_item* d);
+void buffer_putfilter(struct buffer *b,bloom_filter* bfilter);
 
 uint32_t buffer_getint(struct buffer *b);
 uint64_t buffer_getlong(struct buffer *b);
 char *buffer_getnstr(struct buffer *b, size_t n);
 char buffer_getchar(struct buffer *b);
 struct data_item* buffer_getdata(struct buffer *b);
+bloom_filter* buffer_getfilter(struct buffer *b);
+
 void buffer_seekfirst(struct buffer *b);
 
 void buffer_dump(struct buffer *b);

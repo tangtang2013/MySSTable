@@ -41,6 +41,8 @@ void sstmanager_open(sstmanager_t* manager)
 		manager->sst_num = buffer_getint(manager->buf);
 		manager->max = buffer_getint(manager->buf);
 
+		manager->current_id = manager->last_id;
+
 		//sstable size not enough.... try expend
 		if (manager->sst_num > manager->max)
 		{
@@ -141,14 +143,14 @@ void sstmanager_rmsst( sstmanager_t* manager,int id )
 	
 }
 
-void* sstmanager_createsst(sstmanager_t* manager)
+void sstmanager_createsst(sstmanager_t* manager)
 {
 	sstable_t* sst = sst_new(manager->current_id);
 	sstmanager_addsst(manager,sst);
 	sst_build(sst);
 }
 
-void sstmanager_put( sstmanager_t* manager,data_t data )
+int sstmanager_put( sstmanager_t* manager,data_t data )
 {
 	int ret;
 	if (manager->sst_num == 0 || manager->curtable == NULL)
@@ -175,11 +177,11 @@ void sstmanager_put( sstmanager_t* manager,data_t data )
 
 data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 {
-	int i=0;
+	int i = manager->sst_num - 1;
 	sstable_t* pos;
-	data_t* data;
+	data_t* data = NULL;
 	pos = manager->sstables[i];
-	while (pos && i < manager->sst_num)
+	while (pos && i >= 0)
 	{
 		if (pos->status == SNULL)
 		{
@@ -190,7 +192,7 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 		{
 			break;
 		}
-		i++;
+		i--;
 		pos = manager->sstables[i];
 	}
 }
