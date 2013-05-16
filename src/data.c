@@ -12,8 +12,7 @@ void* sstdata_new(int id)
     memset(sstdata->filename,0,128);
     sprintf(sstdata->filename,"sst%06d.data",sstdata->id); 
 
-    sstdata->buf = buffer_new(1024);
-	sstdata->bfilter = create_bfilter(sstdata->max);
+    sstdata->buf = buffer_new(1024*2);
 
 	sstdata->key_num = -1;	//represent the data structure varie is in not initialized status
     
@@ -25,6 +24,7 @@ void sstdata_open(sst_data_t* sstdata)
     int ret;
     int id;
 	int i;
+	int filterlen;
 
     struct _stat info;
     _stat(sstdata->filename, &info);
@@ -36,11 +36,19 @@ void sstdata_open(sst_data_t* sstdata)
     else
     {
         sstdata->file = fopen(sstdata->filename,"rb");
-        ret = fread(buffer_detach(sstdata->buf),12,1,sstdata->file);
-        sstdata->buf->NUL = 12;
+        ret = fread(buffer_detach(sstdata->buf),16,1,sstdata->file);
+        sstdata->buf->NUL = 16;
         id = buffer_getint(sstdata->buf);
         sstdata->key_num = buffer_getint(sstdata->buf);
         sstdata->max = buffer_getint(sstdata->buf);
+		filterlen = buffer_getint(sstdata->buf);		//bfilte->filter mem size
+
+		filterlen = 8 + filterlen * sizeof(unsigned int);									//add two int varies size
+		fseek(sstdata->file,-4,SEEK_CUR);
+		ret = fread(buffer_detach(sstdata->buf),1,filterlen,sstdata->file);
+
+		buffer_seekfirst(sstdata->buf);
+		sstdata->bfilter = buffer_getfilter(sstdata->buf);
         
         if(sstdata->id != id)
         {
@@ -52,8 +60,10 @@ void sstdata_open(sst_data_t* sstdata)
 			sstdata->buf = buffer_new(info.st_size - 12);
 		}
 
+		buffer_clear(sstdata->buf);
 		buffer_seekfirst(sstdata->buf);
-		fread(buffer_detach(sstdata->buf),info.st_size - 12,1,sstdata->file);
+		//fseek(sstdata->file,12+filterlen,SEEK_SET);
+		ret = fread(buffer_detach(sstdata->buf),1,info.st_size - 12 - filterlen,sstdata->file);
 		
 		i = sstdata->key_num;
 		sstdata->keys = (data_t*)xmalloc(sstdata->key_num * sizeof(data_t*));
@@ -74,6 +84,7 @@ void sstdata_build(sst_data_t* sstdata)
     sstdata->key_num = 0;
 
     sstdata->keys = (data_t*)xmalloc(1024 * sizeof(data_t*));
+	sstdata->bfilter = create_bfilter(sstdata->max * 4);
 }
 
 void sstdata_flush(sst_data_t* sstdata)
@@ -85,9 +96,12 @@ void sstdata_flush(sst_data_t* sstdata)
     buffer_putint(sstdata->buf,sstdata->max);
     __INFO("buffer NUL:%d\n",sstdata->buf->NUL);
     ret = fwrite(buffer_detach(sstdata->buf),1,sstdata->buf->NUL,sstdata->file);
-    __INFO("index flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
+    __INFO("sstdata:flush data head flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
 
-	//flush bloomfilter
+	//flush bloomfilter, because buffer_detach call before, we canot set zero the buf->NUL(a write seek)
+	buffer_putfilter(sstdata->buf,sstdata->bfilter);
+	ret = fwrite(buffer_detach(sstdata->buf),1,sstdata->buf->NUL,sstdata->file);
+	__INFO("sstdata:flush bloomfilter flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
 	
 	buffer_clear(sstdata->buf);
 	for (i=0; i<sstdata->key_num; i++)

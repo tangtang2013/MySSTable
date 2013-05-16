@@ -195,4 +195,5 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 		i--;
 		pos = manager->sstables[i];
 	}
+	return data;
 }

@@ -22,7 +22,7 @@ THE SOFTWARE.	*/
 
 #include <stdlib.h>
 #include <string.h>
-
+#include "xmalloc.h"
 #include "tinybloom.h"
 
 #define GETBIT(a, n) ((a[n >> 5] & (1 << (n & 31))) > 0)
@@ -31,24 +31,25 @@ THE SOFTWARE.	*/
 bloom_filter* create_bfilter(size_t size)
 {
 	bloom_filter* bFilter;
-	bFilter = (bloom_filter*)malloc(sizeof(bloom_filter));
+	bFilter = (bloom_filter*)xmalloc(sizeof(bloom_filter));
+	memset(bFilter,0,sizeof(bloom_filter));
 
 	bFilter->filter_size = (size / (sizeof(unsigned) * 8)) + ((size % sizeof(unsigned) * 8) ? 1 : 0);
 
 	bFilter->num_buckets = (bFilter->filter_size) * sizeof(unsigned) * 8;
 
-	bFilter->filter = (unsigned*)malloc((bFilter->filter_size) * sizeof(unsigned));
-	memset(bFilter->filter, 0, bFilter->filter_size);
+	bFilter->filter = (unsigned*)xmalloc((bFilter->filter_size) * sizeof(unsigned int));
+	memset(bFilter->filter, 0, bFilter->filter_size * sizeof(unsigned int));
 
 	return bFilter;
 }
 
 void destroy_bfilter(bloom_filter* bFilter)
 {
-	if(bFilter->filter) free(bFilter->filter);
-	if(bFilter) free(bFilter);
+	if(bFilter->filter) xfree(bFilter->filter);
+	if(bFilter) xfree(bFilter);
 
-	bFilter->filter = NULL;
+//	bFilter->filter = NULL;
 	bFilter = NULL;
 }
 

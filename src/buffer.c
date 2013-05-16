@@ -264,7 +264,7 @@ bloom_filter* buffer_getfilter( struct buffer *b )
 	bloom_filter* bfilter;
 	int len;
 	char* buf;
-	bfilter= (bloom_filter*)malloc(sizeof(bloom_filter));;
+	bfilter= (bloom_filter*)malloc(sizeof(bloom_filter));
 	bfilter->filter_size = buffer_getint(b);
 	bfilter->num_buckets = buffer_getint(b);
 
