@@ -12,8 +12,8 @@ void* sstmanager_new()
 
 	manager->max = SSTABLE_MAX;
 
-	manager->head = xmalloc(sizeof(sstable_t));	//if no enough, need expend
-	memset(manager->head,0,sizeof(sstable_t));
+	manager->head = NULL;//xmalloc(sizeof(sstable_t));	//if no enough, need expend
+	//memset(manager->head,0,sizeof(sstable_t));
 
 	manager->buf = buffer_new(1024);
 	return manager;

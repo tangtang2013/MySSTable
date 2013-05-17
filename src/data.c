@@ -241,15 +241,16 @@ int sstdata_put(sst_data_t* sstdata,data_t* data)
     if(sstdata->max > sstdata->key_num)
     {
 		bfilter_add(sstdata->bfilter,&data->hash_value);
-//		sstdata->keys[sstdata->key_num] = data;
-		_sstdata_binaryinsert(sstdata, data);
+		sstdata->keys[sstdata->key_num] = data;
+//		_sstdata_binaryinsert(sstdata, data);
         sstdata->key_num++;
-//		_sstdata_sort(sstdata);
+
         return 0;
     }
     else
     {
         __INFO("file is full");
+		_sstdata_sort(sstdata);
         return 1;
     }
 }

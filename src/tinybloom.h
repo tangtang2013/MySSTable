@@ -23,10 +23,6 @@ THE SOFTWARE.	*/
 #ifndef TINYBLOOM_H_
 #define TINYBLOOM_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
 	size_t filter_size;
@@ -46,9 +42,5 @@ int bfilter_check(const bloom_filter* bFilter, const unsigned* input);
 
 // Binary OR for bloom filters
 int bfilter_intersect(bloom_filter* a, bloom_filter* b);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
