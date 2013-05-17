@@ -43,7 +43,7 @@ void sst_close(sstable_t* sst)
 	xfree(sst);
 }
 
-int sst_put(sstable_t* sst,data_t data)
+int sst_put(sstable_t* sst,data_t* data)
 {
     return sstdata_put(sst->sstdata,data);
 }

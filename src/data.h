@@ -27,7 +27,7 @@ void sstdata_free(sst_data_t* sstdata);
 void sstdata_open(sst_data_t* sstdata);
 void sstdata_flush(sst_data_t* sstdata);
 void sstdata_build(sst_data_t* sstdata);
-int sstdata_put(sst_data_t* sstdata,data_t data);
+int sstdata_put(sst_data_t* sstdata,data_t* data);
 data_t* sstdata_get(sst_data_t* sstdata,const char* key);
 
 #endif

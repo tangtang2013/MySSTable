@@ -44,3 +44,43 @@ void* clone_data(data_t* data)
 
 	return clone;    
 }
+
+int CmpKey(const char* pKey1,int nKeySize1, const char* pKey2,int nKeySize2)
+{
+	int minlen = (nKeySize1 < nKeySize2) ? nKeySize1 : nKeySize2;
+	int ret = memcmp(pKey1, pKey2, minlen);
+
+	if (ret == 0)
+	{
+		if (nKeySize1 < nKeySize2)
+		{
+			ret = -1;
+		}
+		else if (nKeySize1 > nKeySize2)
+		{
+			ret = +1;
+		}
+	}
+
+	return ret;
+}
+
+int Comparator( const data_t first, const data_t second )
+{
+	int ret;
+
+	if (first.hash_value > second.hash_value)
+	{
+		ret = 1;
+	} 
+	else if (first.hash_value == second.hash_value)
+	{
+		ret = CmpKey(first.key, first.key_len, second.key, second.key_len);
+	}
+	else
+	{
+		ret = -1;
+	}
+
+	return ret;
+}

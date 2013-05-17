@@ -12,8 +12,8 @@ void* sstmanager_new()
 
 	manager->max = SSTABLE_MAX;
 
-	manager->sstables = xmalloc(sizeof(sstable_t*) * SSTABLE_NUM);	//if no enough, need expend
-	memset(manager->sstables,0,sizeof(sstable_t*) * SSTABLE_NUM);
+	manager->head = xmalloc(sizeof(sstable_t));	//if no enough, need expend
+	memset(manager->head,0,sizeof(sstable_t));
 
 	manager->buf = buffer_new(1024);
 	return manager;
@@ -22,7 +22,7 @@ void* sstmanager_new()
 void sstmanager_open(sstmanager_t* manager)
 {
 	int ret,i;
-	sstable_t** ssts = NULL;
+	sstable_t* sst = NULL;
 	
 	manager->file = fopen(manager->filename,"rb");
 	if (!manager->file)
@@ -44,17 +44,13 @@ void sstmanager_open(sstmanager_t* manager)
 		manager->current_id = manager->last_id;
 
 		//sstable size not enough.... try expend
-		if (manager->sst_num > manager->max)
-		{
-			ssts = xrealloc(manager->sstables, sizeof(sstable_t*) * (manager->sst_num + 10));
-			manager->sstables = ssts;
-			manager->max += 10;
-		}
 
 		//read sstable...not open
 		for (i=0; i<manager->sst_num; i++)
 		{
-			manager->sstables[i] = sst_new(i);
+			sst = sst_new(i);
+			sst->next = manager->head;
+			manager->head = sst;
 		}
 	}
 }
@@ -62,6 +58,7 @@ void sstmanager_open(sstmanager_t* manager)
 void sstmanager_flush( sstmanager_t* manager )
 {
 	int i,ret;
+	sstable_t* sst;
 	buffer_clear(manager->buf);
 	buffer_seekfirst(manager->buf);
 	buffer_putint(manager->buf,manager->current_id);
@@ -72,23 +69,39 @@ void sstmanager_flush( sstmanager_t* manager )
 	ret = fwrite(buffer_detach(manager->buf),1,manager->buf->NUL,manager->file);
 	fclose(manager->file);
 	
-	for (i=0; i<manager->sst_num; i++)
+	sst = manager->head;
+	while (sst && sst->status == WRITE)
 	{
-		if (manager->sstables[i]->status == WRITE)
-		{
-			sst_flush(manager->sstables[i]);
-		}
+		sst_flush(sst);
+		sst = sst->next;
 	}
+// 	for (i=0; i<manager->sst_num; i++)
+// 	{
+// 		if (manager->sstable_list[i]->status == WRITE)
+// 		{
+// 			sst_flush(manager->sstable_list[i]);
+// 		}
+// 	}
 }
 
 void sstmanager_close( sstmanager_t* manager )
 {
 	int i;
+	sstable_t* sst;
 
-	for (i=0; i<manager->sst_num; i++)
+	sst = manager->head;
+	while (sst)
 	{
-		sst_close(manager->sstables[i]);
+		manager->head = sst->next;
+		sst->next = NULL;
+		sst_close(sst);
+		sst = manager->head;
 	}
+
+// 	for (i=0; i<manager->sst_num; i++)
+// 	{
+// 		sst_close(manager->sstable_list[i]);
+// 	}
 	if (manager->buf)
 	{
 		buffer_free(manager->buf);
@@ -99,41 +112,11 @@ void sstmanager_close( sstmanager_t* manager )
 	}
 }
 
-int _readid( sstmanager_t* manager )
-{
-	int ret;
-	if(manager->file = fopen(manager->filename,"rb+"))
-	{
-		//read file name to init sstable
-		ret = fread(buffer_detach(manager->buf),4,1,manager->file);
-		manager->buf->NUL = 4;
-		ret = buffer_getint(manager->buf);
-		__INFO("sst last id : %d",ret);
-
-		fclose(manager->file);       
-	}
-	else
-	{
-		__INFO("sst:open error...%s not exist",manager->filename);
-
-		ret = -1;
-	}
-
-	return ret;
-}
-
 void sstmanager_addsst( sstmanager_t* manager,sstable_t* sst )
 {
-	sstable_t** ssts = NULL;
+	sst->next = manager->head;
+	manager->head = sst;
 
-	if (manager->sst_num + 1 > manager->max)
-	{
-		ssts = xrealloc(manager->sstables, sizeof(sstable_t*) * (manager->sst_num + 10));
-		manager->sstables = ssts;
-		manager->max += 10;
-	}
-
-	manager->sstables[manager->current_id] = sst;
 	manager->current_id++;
 	manager->sst_num++;
 }
@@ -150,13 +133,13 @@ void sstmanager_createsst(sstmanager_t* manager)
 	sst_build(sst);
 }
 
-int sstmanager_put( sstmanager_t* manager,data_t data )
+int sstmanager_put( sstmanager_t* manager,data_t* data )
 {
 	int ret;
 	if (manager->sst_num == 0 || manager->curtable == NULL)
 	{
 		sstmanager_createsst(manager);
-		manager->curtable = manager->sstables[manager->current_id - 1];
+		manager->curtable = manager->head;
 	}
 	ret = sst_put(manager->curtable,data); 
 	//ret = -1 :represent sst full
@@ -169,7 +152,7 @@ int sstmanager_put( sstmanager_t* manager,data_t data )
 		sst_flush(manager->curtable);		
 		manager->curtable->status = WFULL;
 		sstmanager_createsst(manager);
-		manager->curtable = manager->sstables[manager->current_id - 1];
+		manager->curtable = manager->head;
 		ret = sst_put(manager->curtable,data); 
 		return ret;
 	}
@@ -180,7 +163,7 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 	int i = manager->sst_num - 1;
 	sstable_t* pos;
 	data_t* data = NULL;
-	pos = manager->sstables[i];
+	pos = manager->head;
 	while (pos && i >= 0)
 	{
 		if (pos->status == SNULL)
@@ -193,7 +176,7 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 			break;
 		}
 		i--;
-		pos = manager->sstables[i];
+		pos = pos->next;
 	}
 	return data;
 }

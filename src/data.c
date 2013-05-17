@@ -7,7 +7,7 @@ void* sstdata_new(int id)
     sst_data_t* sstdata = (sst_data_t*)xmalloc(sizeof(sst_data_t));
     memset(sstdata,0,sizeof(sst_data_t));
     sstdata->id = id;
-	sstdata->max = 1024*4;
+	sstdata->max = 1024*64;
 
     memset(sstdata->filename,0,128);
     sprintf(sstdata->filename,"sst%06d.data",sstdata->id); 
@@ -107,9 +107,14 @@ void sstdata_flush(sst_data_t* sstdata)
 	for (i=0; i<sstdata->key_num; i++)
 	{
 		buffer_putdata(sstdata->buf,sstdata->keys[i]);
+		if (sstdata->buf->NUL > 8192)
+		{
+			ret = fwrite(buffer_detach(sstdata->buf),sstdata->buf->NUL,1,sstdata->file);
+			buffer_clear(sstdata->buf);
+		}
 	}
-	ret = fwrite(buffer_detach(sstdata->buf),1,sstdata->buf->NUL,sstdata->file);
-	__INFO("index data flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
+	ret = fwrite(buffer_detach(sstdata->buf),sstdata->buf->NUL,1,sstdata->file);
+//	__INFO("index data flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
 
 	fflush(sstdata->file);
 }
@@ -180,16 +185,66 @@ data_t* _sstdata_binarysearch(sst_data_t* sstdata, int hashvalue, const char* ke
 	return NULL;
 }
 
-int sstdata_put(sst_data_t* sstdata,data_t data)
+int _sstdata_binaryinsert(sst_data_t* sstdata, data_t* data)
 {
-    data_t* temp;
+	int left, right, middle;
+	int i,j;
+	if (sstdata->key_num == 0)
+	{
+		sstdata->keys[0] = data;
+		return 1;
+	}
+
+	left = 0, right = sstdata->key_num - 1;
+
+	while (left <= right)
+	{
+		middle = (left + right) / 2;
+		if (Comparator(*sstdata->keys[middle], *data) == 1)
+		{
+			right = middle - 1;
+		}
+		else if (Comparator(*sstdata->keys[middle], *data) == -1)
+		{
+			left = middle + 1;
+		}
+		else if (Comparator(*sstdata->keys[middle], *data) == 0)
+		{
+			xfree(sstdata->keys[middle]);	//if the key is exist,replace
+			sstdata->keys[middle] = data;
+			return 0;
+		}
+	}
+
+	i = middle;
+	if (Comparator(*sstdata->keys[middle], *data) > 0)
+	{
+		i = middle;
+	}
+	else
+	{
+		i = middle + 1;
+	}
+	j = sstdata->key_num - 1;
+	for (; j>=i; j--)
+	{
+		sstdata->keys[j+1] = sstdata->keys[j];
+	}
+
+	sstdata->keys[i] = data;
+	
+	return 1;
+}
+
+int sstdata_put(sst_data_t* sstdata,data_t* data)
+{
     if(sstdata->max > sstdata->key_num)
     {
-        temp = clone_data(&data);
-		bfilter_add(sstdata->bfilter,&data.hash_value);
-        sstdata->keys[sstdata->key_num] = temp;
+		bfilter_add(sstdata->bfilter,&data->hash_value);
+//		sstdata->keys[sstdata->key_num] = data;
+		_sstdata_binaryinsert(sstdata, data);
         sstdata->key_num++;
-		_sstdata_sort(sstdata);
+//		_sstdata_sort(sstdata);
         return 0;
     }
     else

@@ -18,6 +18,9 @@ typedef struct data_item
 void* create_data(const char* key, int key_len, const char* value, int value_len, char type);
 void* clone_data(data_t* data);
 
+int CmpKey(const char* pKey1,int nKeySize1, const char* pKey2,int nKeySize2);
+int Comparator( const data_t first, const data_t second );
+
 int SMakeDir(const char* path);
 
 

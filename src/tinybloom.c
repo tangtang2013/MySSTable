@@ -50,7 +50,7 @@ void destroy_bfilter(bloom_filter* bFilter)
 	if(bFilter) xfree(bFilter);
 
 //	bFilter->filter = NULL;
-	bFilter = NULL;
+//	bFilter = NULL;
 }
 
 void bfilter_add(const bloom_filter* bFilter, const unsigned* input)
