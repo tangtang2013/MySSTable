@@ -7,7 +7,7 @@ void* sstdata_new(int id)
     sst_data_t* sstdata = (sst_data_t*)xmalloc(sizeof(sst_data_t));
     memset(sstdata,0,sizeof(sst_data_t));
     sstdata->id = id;
-	sstdata->max = 1024;
+	sstdata->max = 1024*4;
 
     memset(sstdata->filename,0,128);
     sprintf(sstdata->filename,"sst%06d.data",sstdata->id); 
@@ -83,7 +83,7 @@ void sstdata_build(sst_data_t* sstdata)
         
     sstdata->key_num = 0;
 
-    sstdata->keys = (data_t*)xmalloc(1024 * sizeof(data_t*));
+    sstdata->keys = (data_t*)xmalloc(sstdata->max * sizeof(data_t*));
 	sstdata->bfilter = create_bfilter(sstdata->max * 4);
 }
 
@@ -137,6 +137,49 @@ void sstdata_free(sst_data_t* sstdata)
 	}
 }
 
+void _sstdata_sort(sst_data_t* sstdata)
+{
+	int i;
+	int j;
+	data_t* index;
+	for (i=1; i<sstdata->key_num; i++)
+	{
+		j = i;
+		index = sstdata->keys[i];
+		while (j>0 && index->hash_value < sstdata->keys[j-1]->hash_value)
+		{
+			sstdata->keys[j] = sstdata->keys[j-1];
+			j--;
+		}
+		sstdata->keys[j] = index;
+	}
+}
+
+data_t* _sstdata_binarysearch(sst_data_t* sstdata, int hashvalue, const char* key)
+{
+	int left, right, middle;
+
+	left = 0, right = sstdata->key_num - 1;
+
+	while (left <= right)
+	{
+		middle = (left + right) / 2;
+		if (sstdata->keys[middle]->hash_value > hashvalue && strcmp(key,sstdata->keys[middle]->key) != 0)
+		{
+			right = middle - 1;
+		}
+		else if (sstdata->keys[middle] < hashvalue && strcmp(key,sstdata->keys[middle]->key) != 0)
+		{
+			left = middle + 1;
+		}
+		else
+		{
+			return sstdata->keys[middle];
+		}
+	}
+	return NULL;
+}
+
 int sstdata_put(sst_data_t* sstdata,data_t data)
 {
     data_t* temp;
@@ -146,6 +189,7 @@ int sstdata_put(sst_data_t* sstdata,data_t data)
 		bfilter_add(sstdata->bfilter,&data.hash_value);
         sstdata->keys[sstdata->key_num] = temp;
         sstdata->key_num++;
+		_sstdata_sort(sstdata);
         return 0;
     }
     else
@@ -157,7 +201,6 @@ int sstdata_put(sst_data_t* sstdata,data_t data)
 
 data_t* sstdata_get(sst_data_t* sstdata,const char* key)
 {
-    int i;
 	int hash_value;
 
 	hash_value = PMurHash32(0,key,strlen(key));
@@ -166,12 +209,5 @@ data_t* sstdata_get(sst_data_t* sstdata,const char* key)
 		return NULL;
 	}
     
-    for(i=0; i<sstdata->key_num; i++)
-    {
-        if(strcmp(key,sstdata->keys[i]->key) == 0)
-        {
-            return sstdata->keys[i];
-        }
-    }
-    return NULL;
+	return _sstdata_binarysearch(sstdata,hash_value,key);
 }

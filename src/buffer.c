@@ -256,6 +256,7 @@ struct data_item* buffer_getdata( struct buffer *b )
 	memcpy(data->value,buffer_getnstr(b,data->value_len),data->value_len);
 	data->addr[data->key_len + 1] = 0;
 	data->addr[data->key_len + data->value_len + 2] = 0;
+
 	return data;
 }
 
@@ -273,5 +274,6 @@ bloom_filter* buffer_getfilter( struct buffer *b )
 
 	buf = buffer_getnstr(b,len);
 	memcpy(bfilter->filter,buf,len);
+
 	return bfilter;
 }
