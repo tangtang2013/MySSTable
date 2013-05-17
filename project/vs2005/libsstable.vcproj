@@ -40,7 +40,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../src"
+				AdditionalIncludeDirectories="../../src"
 				PreprocessorDefinitions="WIN32;_DEBUG;_LIB"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -148,39 +148,39 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\src\buffer.c"
+				RelativePath="..\..\src\buffer.c"
 				>
 			</File>
 			<File
-				RelativePath="..\src\common.c"
+				RelativePath="..\..\src\common.c"
 				>
 			</File>
 			<File
-				RelativePath="..\src\data.c"
+				RelativePath="..\..\src\data.c"
 				>
 			</File>
 			<File
-				RelativePath="..\src\debug.c"
+				RelativePath="..\..\src\debug.c"
 				>
 			</File>
 			<File
-				RelativePath="..\src\PMurHash.c"
+				RelativePath="..\..\src\PMurHash.c"
 				>
 			</File>
 			<File
-				RelativePath="..\src\sst.c"
+				RelativePath="..\..\src\sst.c"
 				>
 			</File>
 			<File
-				RelativePath="..\src\sstmanager.c"
+				RelativePath="..\..\src\sstmanager.c"
 				>
 			</File>
 			<File
-				RelativePath="..\src\tinybloom.c"
+				RelativePath="..\..\src\tinybloom.c"
 				>
 			</File>
 			<File
-				RelativePath="..\src\xmalloc.c"
+				RelativePath="..\..\src\xmalloc.c"
 				>
 			</File>
 		</Filter>
@@ -190,43 +190,43 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath="..\src\buffer.h"
+				RelativePath="..\..\src\buffer.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\common.h"
+				RelativePath="..\..\src\common.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\data.h"
+				RelativePath="..\..\src\data.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\debug.h"
+				RelativePath="..\..\src\debug.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\PMurHash.h"
+				RelativePath="..\..\src\PMurHash.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\sst.h"
+				RelativePath="..\..\src\sst.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\sstmanager.h"
+				RelativePath="..\..\src\sstmanager.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\stdint.h"
+				RelativePath="..\..\src\stdint.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\tinybloom.h"
+				RelativePath="..\..\src\tinybloom.h"
 				>
 			</File>
 			<File
-				RelativePath="..\src\xmalloc.h"
+				RelativePath="..\..\src\xmalloc.h"
 				>
 			</File>
 		</Filter>
