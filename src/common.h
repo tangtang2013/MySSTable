@@ -20,6 +20,7 @@ void* clone_data(data_t* data);
 
 int CmpKey(const char* pKey1,int nKeySize1, const char* pKey2,int nKeySize2);
 int Comparator( const data_t first, const data_t second );
+int ComparatorB( unsigned long firsthash, const char* firstkey, unsigned long secondhash, const char* secondkey );
 
 int SMakeDir(const char* path);
 

@@ -257,6 +257,8 @@ struct data_item* buffer_getdata( struct buffer *b )
 	data->addr[data->key_len + 1] = 0;
 	data->addr[data->key_len + data->value_len + 2] = 0;
 
+	data->hash_value = PMurHash32(0,data->key,data->key_len);
+
 	return data;
 }
 

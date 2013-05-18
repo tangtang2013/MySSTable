@@ -62,7 +62,7 @@ void sstdata_open(sst_data_t* sstdata)
 
 		buffer_clear(sstdata->buf);
 		buffer_seekfirst(sstdata->buf);
-		//fseek(sstdata->file,12+filterlen,SEEK_SET);
+		fseek(sstdata->file,12+filterlen,SEEK_SET);
 		ret = fread(buffer_detach(sstdata->buf),1,info.st_size - 12 - filterlen,sstdata->file);
 		
 		i = sstdata->key_num;
@@ -151,7 +151,7 @@ void _sstdata_sort(sst_data_t* sstdata)
 	{
 		j = i;
 		index = sstdata->keys[i];
-		while (j>0 && index->hash_value < sstdata->keys[j-1]->hash_value)
+		while (j>0 && Comparator(*index,*sstdata->keys[j-1]) == -1)
 		{
 			sstdata->keys[j] = sstdata->keys[j-1];
 			j--;
@@ -160,7 +160,7 @@ void _sstdata_sort(sst_data_t* sstdata)
 	}
 }
 
-data_t* _sstdata_binarysearch(sst_data_t* sstdata, int hashvalue, const char* key)
+data_t* _sstdata_binarysearch(sst_data_t* sstdata, unsigned int hashvalue, const char* key)
 {
 	int left, right, middle;
 
@@ -169,11 +169,11 @@ data_t* _sstdata_binarysearch(sst_data_t* sstdata, int hashvalue, const char* ke
 	while (left <= right)
 	{
 		middle = (left + right) / 2;
-		if (sstdata->keys[middle]->hash_value > hashvalue && strcmp(key,sstdata->keys[middle]->key) != 0)
+		if (ComparatorB(sstdata->keys[middle]->hash_value,sstdata->keys[middle]->key,hashvalue,key) == 1)
 		{
 			right = middle - 1;
 		}
-		else if (sstdata->keys[middle] < hashvalue && strcmp(key,sstdata->keys[middle]->key) != 0)
+		else if (ComparatorB(sstdata->keys[middle]->hash_value,sstdata->keys[middle]->key,hashvalue,key) == -1)
 		{
 			left = middle + 1;
 		}
@@ -244,20 +244,20 @@ int sstdata_put(sst_data_t* sstdata,data_t* data)
 		sstdata->keys[sstdata->key_num] = data;
 //		_sstdata_binaryinsert(sstdata, data);
         sstdata->key_num++;
-
+		_sstdata_sort(sstdata);
         return 0;
     }
     else
     {
         __INFO("file is full");
-		_sstdata_sort(sstdata);
+//		_sstdata_sort(sstdata);
         return 1;
     }
 }
 
 data_t* sstdata_get(sst_data_t* sstdata,const char* key)
 {
-	int hash_value;
+	unsigned long hash_value;
 
 	hash_value = PMurHash32(0,key,strlen(key));
 	if (!bfilter_check(sstdata->bfilter,&hash_value))

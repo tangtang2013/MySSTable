@@ -84,3 +84,23 @@ int Comparator( const data_t first, const data_t second )
 
 	return ret;
 }
+
+int ComparatorB( unsigned long firsthash, const char* firstkey, unsigned long secondhash, const char* secondkey )
+{
+	int ret;
+
+	if (firsthash > secondhash)
+	{
+		ret = 1;
+	} 
+	else if (firsthash == secondhash)
+	{
+		ret = CmpKey(firstkey, strlen(firstkey), secondkey, strlen(secondkey));
+	}
+	else
+	{
+		ret = -1;
+	}
+
+	return ret;
+}
