@@ -104,3 +104,36 @@ int ComparatorB( unsigned long firsthash, const char* firstkey, unsigned long se
 
 	return ret;
 }
+
+int ComparatorC( const data_t* first, const data_t* second )
+{
+	int ret;
+
+	if (first == NULL && second == NULL)
+	{
+		return 0;
+	}
+	else if(first == NULL && second != NULL)
+	{
+		return -1;
+	}
+	else if(first != NULL && second == NULL)
+	{
+		return 1;
+	}
+
+	if (first->hash_value > second->hash_value)
+	{
+		ret = 1;
+	} 
+	else if (first->hash_value == second->hash_value)
+	{
+		ret = CmpKey(first->key, first->key_len, second->key, second->key_len);
+	}
+	else
+	{
+		ret = -1;
+	}
+
+	return ret;
+}

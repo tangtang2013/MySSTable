@@ -244,6 +244,12 @@ int sstdata_put(sst_data_t* sstdata,data_t* data)
 data_t* sstdata_get(sst_data_t* sstdata,const char* key)
 {
 	unsigned long hash_value;
+
+	if (sstdata->key_num == 0)
+	{
+		return NULL;
+	}
+
 	hash_value = PMurHash32(0,key,strlen(key));
 	if (hash_value <= sstdata->smallest_key->hash_value && hash_value >= sstdata->bigest_key->hash_value)
 	{

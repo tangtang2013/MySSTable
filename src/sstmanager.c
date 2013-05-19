@@ -180,3 +180,70 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 	}
 	return data;
 }
+
+data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int* point)
+{
+	int i;
+	int index= -1;
+	datas[number] = NULL;
+	for (i=0; i<number; i++)
+	{
+		if (point[i]<ssts[i]->sstdata->key_num)
+		{
+			datas[i] = ssts[i]->sstdata->keys[point[i]];
+		}
+		else
+		{
+			datas[i] = NULL;
+		}
+		if (ComparatorC(datas[i],datas[(i+number-1)%number]) == 1)
+		{
+			datas[number] = datas[i];
+		}
+		else
+		{
+			datas[number] = datas[(i+number-1)%number];
+		}
+	}
+	//point[index]++;
+	return NULL;
+}
+
+void sstmanager_compact( sstmanager_t* manager,int begin,int end )
+{
+	int *point;
+	data_t** datas;
+	sstable_t* psst = manager->head;
+	sstable_t** ssts;
+	sstable_t** cssts;
+	int i;
+	int num = end - begin + 1;
+	if (begin == begin)
+	{
+		printf("only one sstable");
+		return;
+	}
+
+	//init the point, use the sort data
+	point = xmalloc(sizeof(int) * (end - begin));
+	datas = xmalloc(sizeof(data_t*) * num);
+	ssts = xmalloc(sizeof(sstable_t*) * manager->sst_num);
+	cssts = xmalloc(sizeof(sstable_t*) * (end - begin + 1));
+	//copy ssts...
+	for (i=manager->sst_num-1; i>=0; i--)
+	{
+		ssts[i] = psst;
+		psst = psst->next;
+	}
+	//get compact ssts
+	for (i=0; i<num; i++)
+	{
+		point[i] = 0;
+		cssts[i+begin] = ssts[i+begin];
+	}
+	sstmanager_createsst(manager);
+	manager->compact = manager->head;
+
+
+
+}

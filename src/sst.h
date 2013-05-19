@@ -11,7 +11,8 @@ typedef enum esst_status
 	UNOPEN,
 	WRITE,
 	READ,
-	WFULL
+	WFULL,
+	COMPACT
 }sst_status;
 
 typedef struct sstable
