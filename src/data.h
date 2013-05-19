@@ -19,7 +19,6 @@ typedef struct sst_data
     char filename[128];
     FILE *file;
     buffer_t* buf;
-	bloom_filter* bfilter;
 }sst_data_t;
 
 void* sstdata_new(int id);

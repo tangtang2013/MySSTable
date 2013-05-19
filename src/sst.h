@@ -8,6 +8,7 @@
 typedef enum esst_status
 {
 	SNULL,
+	UNOPEN,
 	WRITE,
 	READ,
 	WFULL

@@ -24,7 +24,7 @@ void sstdata_open(sst_data_t* sstdata)
     int ret;
     int id;
 	int i;
-	int filterlen;
+	int filterlen = 0;
 
     struct _stat info;
     _stat(sstdata->filename, &info);
@@ -36,19 +36,11 @@ void sstdata_open(sst_data_t* sstdata)
     else
     {
         sstdata->file = fopen(sstdata->filename,"rb");
-        ret = fread(buffer_detach(sstdata->buf),16,1,sstdata->file);
+        ret = fread(buffer_detach(sstdata->buf),12,1,sstdata->file);
         sstdata->buf->NUL = 16;
         id = buffer_getint(sstdata->buf);
         sstdata->key_num = buffer_getint(sstdata->buf);
         sstdata->max = buffer_getint(sstdata->buf);
-		filterlen = buffer_getint(sstdata->buf);		//bfilte->filter mem size
-
-		filterlen = 8 + filterlen * sizeof(unsigned int);									//add two int varies size
-		fseek(sstdata->file,-4,SEEK_CUR);
-		ret = fread(buffer_detach(sstdata->buf),1,filterlen,sstdata->file);
-
-		buffer_seekfirst(sstdata->buf);
-		sstdata->bfilter = buffer_getfilter(sstdata->buf);
         
         if(sstdata->id != id)
         {
@@ -84,7 +76,6 @@ void sstdata_build(sst_data_t* sstdata)
     sstdata->key_num = 0;
 
     sstdata->keys = (data_t*)xmalloc(sstdata->max * sizeof(data_t*));
-	sstdata->bfilter = create_bfilter(sstdata->max * 4);
 }
 
 void sstdata_flush(sst_data_t* sstdata)
@@ -97,11 +88,6 @@ void sstdata_flush(sst_data_t* sstdata)
     __INFO("buffer NUL:%d\n",sstdata->buf->NUL);
     ret = fwrite(buffer_detach(sstdata->buf),1,sstdata->buf->NUL,sstdata->file);
     __INFO("sstdata:flush data head flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
-
-	//flush bloomfilter, because buffer_detach call before, we canot set zero the buf->NUL(a write seek)
-	buffer_putfilter(sstdata->buf,sstdata->bfilter);
-	ret = fwrite(buffer_detach(sstdata->buf),1,sstdata->buf->NUL,sstdata->file);
-	__INFO("sstdata:flush bloomfilter flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
 	
 	buffer_clear(sstdata->buf);
 	for (i=0; i<sstdata->key_num; i++)
@@ -136,10 +122,6 @@ void sstdata_free(sst_data_t* sstdata)
 	if(sstdata->keys)
 		xfree(sstdata->keys);
 
-	if (sstdata->bfilter)
-	{
-		destroy_bfilter(sstdata->bfilter);
-	}
 }
 
 void _sstdata_sort(sst_data_t* sstdata)
@@ -240,7 +222,6 @@ int sstdata_put(sst_data_t* sstdata,data_t* data)
 {
     if(sstdata->max > sstdata->key_num)
     {
-		bfilter_add(sstdata->bfilter,&data->hash_value);
 		sstdata->keys[sstdata->key_num] = data;
 //		_sstdata_binaryinsert(sstdata, data);
         sstdata->key_num++;
@@ -260,10 +241,6 @@ data_t* sstdata_get(sst_data_t* sstdata,const char* key)
 	unsigned long hash_value;
 
 	hash_value = PMurHash32(0,key,strlen(key));
-	if (!bfilter_check(sstdata->bfilter,&hash_value))
-	{
-		return NULL;
-	}
     
 	return _sstdata_binarysearch(sstdata,hash_value,key);
 }

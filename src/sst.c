@@ -6,7 +6,7 @@ void* sst_new(int id)
     sstable_t* sst = (sstable_t*)xmalloc(sizeof(sstable_t));
     memset(sst,0,sizeof(sstable_t));
 
-	sst->status = SNULL;
+	sst->status = UNOPEN;
 	sst->id = id;
   
     return sst;

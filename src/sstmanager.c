@@ -164,9 +164,9 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 	sstable_t* pos;
 	data_t* data = NULL;
 	pos = manager->head;
-	while (pos && i >= 0)
+	while (pos && pos->status != SNULL && i >= 0)
 	{
-		if (pos->status == SNULL)
+		if (pos->status == UNOPEN)
 		{
 			sst_open(pos);
 		}
