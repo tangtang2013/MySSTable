@@ -13,6 +13,9 @@ typedef struct sst_data
     int id;
     int key_num;
     data_t** keys;
+
+	data_t* bigest_key;
+	data_t* smallest_key;
     
     int max;
     

@@ -63,6 +63,9 @@ void sstdata_open(sst_data_t* sstdata)
 		{
 			sstdata->keys[i] = buffer_getdata(sstdata->buf);
 		}
+
+		sstdata->bigest_key = sstdata->keys[sstdata->key_num-1];
+		sstdata->smallest_key = sstdata->keys[0];
     }
 }
 
@@ -223,15 +226,17 @@ int sstdata_put(sst_data_t* sstdata,data_t* data)
     if(sstdata->max > sstdata->key_num)
     {
 		sstdata->keys[sstdata->key_num] = data;
-//		_sstdata_binaryinsert(sstdata, data);
-        sstdata->key_num++;
-		_sstdata_sort(sstdata);
-        return 0;
+		_sstdata_binaryinsert(sstdata, data);
+		sstdata->key_num++;
+//		_sstdata_sort(sstdata);
+		sstdata->bigest_key = sstdata->keys[sstdata->key_num-1];
+		sstdata->smallest_key = sstdata->keys[0];
+		return 0;
     }
     else
     {
         __INFO("file is full");
-//		_sstdata_sort(sstdata);
+
         return 1;
     }
 }
@@ -239,8 +244,11 @@ int sstdata_put(sst_data_t* sstdata,data_t* data)
 data_t* sstdata_get(sst_data_t* sstdata,const char* key)
 {
 	unsigned long hash_value;
-
 	hash_value = PMurHash32(0,key,strlen(key));
+	if (hash_value <= sstdata->smallest_key->hash_value && hash_value >= sstdata->bigest_key->hash_value)
+	{
+		return NULL;
+	}
     
 	return _sstdata_binarysearch(sstdata,hash_value,key);
 }
