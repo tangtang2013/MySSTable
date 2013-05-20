@@ -5,37 +5,37 @@
 #include "data.h"
 #include <stdio.h>
 
+//this enum is sstable status
 typedef enum esst_status
 {
-	SNULL,
-	UNOPEN,
-	WRITE,
-	READ,
-	WFULL,
-	COMPACT
+	SNULL,		//sstable is NULL
+	UNOPEN,		//sstable is unopen
+	WRITE,		//sstable is in wirting
+	READ,		//sstable is in reading
+	WFULL,		//sstable is writing full
+	COMPACT,	//sstable is in compacting
+	COMPACTED,	//sstable is in compacted
 }sst_status;
 
+//this a is structure for sstable
 typedef struct sstable
 {
-    int id;
-    sst_data_t* sstdata;
-	sst_status status;
-    
-    char filename[128];
-    FILE *file;
-    buffer_t* buf;
+    int id;					//id
+    sst_data_t* sstdata;	//store data
+	sst_status status;		//sstable status
 
-	struct sstable* prev;
-	struct sstable* next;
+	struct sstable* prev;	//prev point in sstable list
+	struct sstable* next;	//next point in sstable list
 }sstable_t;
 
 void* sst_new(int id);
-void sst_open(sstable_t* sst);
+void sst_open(sstable_t* sst,sst_status status);
 void sst_close(sstable_t* sst);
-void sst_build(sstable_t* sst);
+
 void sst_flush(sstable_t* sst);
 
 int sst_put(sstable_t* sst,data_t* data);
 data_t* sst_get(sstable_t* sst,const char* key);
+int sst_compactput(sstable_t* sst,data_t* data);
 
 #endif

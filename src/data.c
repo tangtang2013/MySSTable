@@ -81,18 +81,32 @@ void sstdata_build(sst_data_t* sstdata)
     sstdata->keys = (data_t*)xmalloc(sstdata->max * sizeof(data_t*));
 }
 
-void sstdata_flush(sst_data_t* sstdata)
+//write sstable head in file
+void sstdata_writehead(sst_data_t* sstdata)
 {
-    int ret,i,len;
-	
-    buffer_putint(sstdata->buf,sstdata->id);
-    buffer_putint(sstdata->buf,sstdata->key_num);
-    buffer_putint(sstdata->buf,sstdata->max);
-    __INFO("buffer NUL:%d\n",sstdata->buf->NUL);
-    ret = fwrite(buffer_detach(sstdata->buf),1,sstdata->buf->NUL,sstdata->file);
-    __INFO("sstdata:flush data head flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
-	
+	int ret;
+
 	buffer_clear(sstdata->buf);
+	buffer_putint(sstdata->buf,sstdata->id);
+	buffer_putint(sstdata->buf,sstdata->key_num);
+	buffer_putint(sstdata->buf,sstdata->max);
+	
+	__INFO("buffer NUL:%d\n",sstdata->buf->NUL);
+
+	fseek(sstdata->file,0,SEEK_SET);
+	ret = fwrite(buffer_detach(sstdata->buf),1,sstdata->buf->NUL,sstdata->file);
+	fflush(sstdata->file);
+	
+	__INFO("sstdata:flush data head flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
+
+	buffer_clear(sstdata->buf);
+}
+
+//write sstable data in file
+void sstdata_writedata(sst_data_t* sstdata)
+{
+	int ret,i;
+	
 	for (i=0; i<sstdata->key_num; i++)
 	{
 		buffer_putdata(sstdata->buf,sstdata->keys[i]);
@@ -102,29 +116,43 @@ void sstdata_flush(sst_data_t* sstdata)
 			buffer_clear(sstdata->buf);
 		}
 	}
+
 	ret = fwrite(buffer_detach(sstdata->buf),sstdata->buf->NUL,1,sstdata->file);
-//	__INFO("index data flush : %s, NUL:%d, ret:%d ",sstdata->filename,sstdata->buf->NUL,ret);
+	fflush(sstdata->file);
+}
+
+void sstdata_flush(sst_data_t* sstdata)
+{
+	//write sstable head in file
+	sstdata_writehead(sstdata);
+
+	//write sstable data in file 
+	sstdata_writedata(sstdata);
 
 	fflush(sstdata->file);
 }
 
+void sstdata_relasedata(sst_data_t* sstdata)
+{
+	int i;
+
+	if(sstdata->keys)
+	{
+		for(i=0; i<sstdata->key_num; i++)
+		{
+			xfree(sstdata->keys[i]);
+		}
+		xfree(sstdata->keys);
+	}
+}
+
 void sstdata_free(sst_data_t* sstdata)
 {
-    int i;
-    for(i=0; i<sstdata->key_num; i++)
-    {
-        xfree(sstdata->keys[i]);
-    }
-
 	if(sstdata->file)
 		fclose(sstdata->file);
 
 	if(sstdata->buf)
 		buffer_free(sstdata->buf);
-
-	if(sstdata->keys)
-		xfree(sstdata->keys);
-
 }
 
 void _sstdata_sort(sst_data_t* sstdata)
@@ -229,7 +257,7 @@ int sstdata_put(sst_data_t* sstdata,data_t* data)
 		_sstdata_binaryinsert(sstdata, data);
 		sstdata->key_num++;
 //		_sstdata_sort(sstdata);
-		sstdata->bigest_key = sstdata->keys[sstdata->key_num-1];
+		sstdata->bigest_key = sstdata->keys[sstdata->key_num-1];	//will exist a bug 
 		sstdata->smallest_key = sstdata->keys[0];
 		return 0;
     }
@@ -257,4 +285,22 @@ data_t* sstdata_get(sst_data_t* sstdata,const char* key)
 	}
     
 	return _sstdata_binarysearch(sstdata,hash_value,key);
+}
+
+int sstdata_compactput( sst_data_t* sstdata,data_t* data )
+{
+	int ret;
+	if(sstdata->max > sstdata->key_num)
+	{
+		buffer_clear(sstdata->buf);
+		buffer_putdata(sstdata->buf,data);
+		ret = fwrite(buffer_detach(sstdata->buf),sstdata->buf->NUL,1,sstdata->file);
+		sstdata->key_num++;
+		return 0;
+	}
+	else
+	{
+		__INFO("file is full");
+		return 1;
+	}
 }

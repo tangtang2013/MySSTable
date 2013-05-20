@@ -25,7 +25,12 @@ void* create_data(const char* key, int key_len, const char* value, int value_len
 
 void* clone_data(data_t* data)
 {
-	data_t* clone = (data_t*)xmalloc(sizeof(data_t) + data->key_len + data->value_len + 2);
+	data_t* clone;
+	if (data == NULL)
+	{
+		return NULL;
+	}
+	clone = (data_t*)xmalloc(sizeof(data_t) + data->key_len + data->value_len + 2);
 	//	memcpy(clone,data,sizeof(data_t) + data->key_len + data->value_len + 2);
 	memset(clone,0,sizeof(data_t) + data->key_len + data->value_len + 2);
 
@@ -105,6 +110,12 @@ int ComparatorB( unsigned long firsthash, const char* firstkey, unsigned long se
 	return ret;
 }
 
+/*********************************************************
+ * @name:	ComparatorC
+ * @func:	use to find a smaller data in compact...
+ * @in:		const data_t*, const data_t*
+ * @ret:	int
+ *********************************************************/
 int ComparatorC( const data_t* first, const data_t* second )
 {
 	int ret;
@@ -113,13 +124,13 @@ int ComparatorC( const data_t* first, const data_t* second )
 	{
 		return 0;
 	}
-	else if(first == NULL && second != NULL)
+	else if(first == NULL && second != NULL)//in my opinion : NULL data -the data is smaller
 	{
-		return -1;
+		return 1;
 	}
 	else if(first != NULL && second == NULL)
 	{
-		return 1;
+		return -1;
 	}
 
 	if (first->hash_value > second->hash_value)

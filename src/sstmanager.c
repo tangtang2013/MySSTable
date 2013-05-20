@@ -12,8 +12,7 @@ void* sstmanager_new()
 
 	manager->max = SSTABLE_MAX;
 
-	manager->head = NULL;//xmalloc(sizeof(sstable_t));	//if no enough, need expend
-	//memset(manager->head,0,sizeof(sstable_t));
+	manager->head = NULL;
 
 	manager->buf = buffer_new(1024);
 	return manager;
@@ -43,8 +42,6 @@ void sstmanager_open(sstmanager_t* manager)
 
 		manager->current_id = manager->last_id;
 
-		//sstable size not enough.... try expend
-
 		//read sstable...not open
 		for (i=0; i<manager->sst_num; i++)
 		{
@@ -69,19 +66,16 @@ void sstmanager_flush( sstmanager_t* manager )
 	ret = fwrite(buffer_detach(manager->buf),1,manager->buf->NUL,manager->file);
 	fclose(manager->file);
 	
+	//only flush the sstable in WRITE and COMPACT status,because other status ssstable no change
 	sst = manager->head;
-	while (sst && sst->status == WRITE)
+	while (sst && sst->status != SNULL)
 	{
-		sst_flush(sst);
+		if (sst->status == WRITE || sst->status == COMPACT)
+		{
+			sst_flush(sst);
+		}
 		sst = sst->next;
 	}
-// 	for (i=0; i<manager->sst_num; i++)
-// 	{
-// 		if (manager->sstable_list[i]->status == WRITE)
-// 		{
-// 			sst_flush(manager->sstable_list[i]);
-// 		}
-// 	}
 }
 
 void sstmanager_close( sstmanager_t* manager )
@@ -89,6 +83,7 @@ void sstmanager_close( sstmanager_t* manager )
 	int i;
 	sstable_t* sst;
 
+	//close all the sstables
 	sst = manager->head;
 	while (sst)
 	{
@@ -98,14 +93,11 @@ void sstmanager_close( sstmanager_t* manager )
 		sst = manager->head;
 	}
 
-// 	for (i=0; i<manager->sst_num; i++)
-// 	{
-// 		sst_close(manager->sstable_list[i]);
-// 	}
 	if (manager->buf)
 	{
 		buffer_free(manager->buf);
 	}
+
 	if (manager->file)
 	{
 		fclose(manager->file);
@@ -123,14 +115,38 @@ void sstmanager_addsst( sstmanager_t* manager,sstable_t* sst )
 
 void sstmanager_rmsst( sstmanager_t* manager,int id )
 {
-	
+	int i;
+	char* filename;
+	sstable_t* rmsst;
+	sstable_t* psst = manager->head;
+	sstable_t** ssts;
+	ssts = xmalloc(sizeof(sstable_t*) * manager->sst_num);
+
+	for (i=manager->sst_num-1; i>=0; i--)
+	{
+		ssts[i] = psst;
+		psst = psst->next;
+		if (ssts[i]->status == WRITE && ssts[i]->status == WFULL)
+		{
+			printf("I refuse do delete for sstable in writing\n");
+			goto CLEAR;
+		}
+	}
+	rmsst = ssts[id];
+	ssts[id+1]->next = ssts[id]->next;		//delete sstable from sstable list
+	manager->sst_num--;						//sstable list size decrease 1
+	filename = rmsst->sstdata->filename;
+	sst_close(rmsst);
+	remove(filename);
+CLEAR:
+	xfree(ssts);
 }
 
-void sstmanager_createsst(sstmanager_t* manager)
+void sstmanager_createsst(sstmanager_t* manager,sst_status status)
 {
 	sstable_t* sst = sst_new(manager->current_id);
 	sstmanager_addsst(manager,sst);
-	sst_build(sst);
+	sst_open(sst,status);
 }
 
 int sstmanager_put( sstmanager_t* manager,data_t* data )
@@ -138,10 +154,11 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 	int ret;
 	if (manager->sst_num == 0 || manager->curtable == NULL)
 	{
-		sstmanager_createsst(manager);
+		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 		manager->curtable = manager->head;
 	}
-	ret = sst_put(manager->curtable,data); 
+	ret = sst_put(manager->curtable,data);
+
 	//ret = -1 :represent sst full
 	if (ret == 0)
 	{
@@ -149,9 +166,9 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 	} 
 	else
 	{
-		sst_flush(manager->curtable);		
-		manager->curtable->status = WFULL;
-		sstmanager_createsst(manager);
+		sst_flush(manager->curtable);
+		manager->curtable->status = WFULL;		//think??? this code is good?
+		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 		manager->curtable = manager->head;
 		ret = sst_put(manager->curtable,data); 
 		return ret;
@@ -166,10 +183,6 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 	pos = manager->head;
 	while (pos && pos->status != SNULL && i >= 0)
 	{
-		if (pos->status == UNOPEN)
-		{
-			sst_open(pos);
-		}
 		data = sst_get(pos,key);
 		if (data)
 		{
@@ -181,12 +194,14 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 	return data;
 }
 
-data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int* point)
+data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int start,int* point)
 {
 	int i;
 	int index= -1;
-	datas[number] = NULL;
-	for (i=0; i<number; i++)
+	data_t* mindata;//data[....][tail] tail is always null
+	datas[number-1] = NULL;
+	mindata = datas[number-1];//data[....][tail] tail is always null 
+	for (i=0; i<number-1; i++)
 	{
 		if (point[i]<ssts[i]->sstdata->key_num)
 		{
@@ -198,52 +213,78 @@ data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int*
 		}
 		if (ComparatorC(datas[i],datas[(i+number-1)%number]) == 1)
 		{
-			datas[number] = datas[i];
+			mindata = datas[(i+number-1)%number];
+			index = (i+number-1)%number;
 		}
 		else
 		{
-			datas[number] = datas[(i+number-1)%number];
+			mindata = datas[i];
+			index = i;
 		}
 	}
-	//point[index]++;
-	return NULL;
+	point[index]++;
+	
+	return mindata;
 }
 
 void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 {
+	int ret;
 	int *point;
+	data_t* getdata;
 	data_t** datas;
 	sstable_t* psst = manager->head;
 	sstable_t** ssts;
-	sstable_t** cssts;
+
 	int i;
 	int num = end - begin + 1;
-	if (begin == begin)
+	if (begin == end || manager->sst_num <= end)
 	{
-		printf("only one sstable");
+		printf("only one sstable or the sstables number is litter than end\n");
 		return;
 	}
 
 	//init the point, use the sort data
-	point = xmalloc(sizeof(int) * (end - begin));
-	datas = xmalloc(sizeof(data_t*) * num);
+	point = xmalloc(sizeof(int) * (end - begin + 1));
+	datas = xmalloc(sizeof(data_t*) * (num + 1));
 	ssts = xmalloc(sizeof(sstable_t*) * manager->sst_num);
-	cssts = xmalloc(sizeof(sstable_t*) * (end - begin + 1));
+
 	//copy ssts...
 	for (i=manager->sst_num-1; i>=0; i--)
 	{
 		ssts[i] = psst;
 		psst = psst->next;
+		if (ssts[i]->status == WRITE && ssts[i]->status == WFULL)
+		{
+			printf("I refuse do compact for sstable in writing\n");
+			goto CLEAR;
+		}
 	}
-	//get compact ssts
-	for (i=0; i<num; i++)
-	{
-		point[i] = 0;
-		cssts[i+begin] = ssts[i+begin];
-	}
-	sstmanager_createsst(manager);
+	//init the data in point with zero
+	memset(point,0,sizeof(int) * (end-begin+1));
+
+	sstmanager_createsst(manager,COMPACT);	//create COMPACT sstable
 	manager->compact = manager->head;
 
+	while ((getdata=_sstmanager_findsmallest(ssts,datas,num+1,begin,point)) != NULL)
+	{
+		//printf("%s %s %u\n",getdata->key,getdata->value,getdata->hash_value);
+		ret = sst_compactput(manager->compact,getdata);	//ret = 0 is ok,ret != 0 is sst full
+		if (ret != 0)
+		{
+			sst_flush(manager->compact);
+			sstmanager_createsst(manager,COMPACT);		//create COMPACT sstable
+			manager->compact = manager->head;
+		}
+	}
+	//after compact remove sstable
+	for (i=begin; i<=end; i++)
+	{
+		sstmanager_rmsst(manager,i);
+	}
 
-
+CLEAR:
+	xfree(point);
+	xfree(datas);
+	xfree(ssts);
 }
