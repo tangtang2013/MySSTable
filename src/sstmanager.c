@@ -11,7 +11,6 @@ void* sstmanager_new()
 	sprintf(manager->filename,"Manifest");
 
 	manager->max = SSTABLE_MAX;
-
 	manager->head = NULL;
 
 	manager->buf = buffer_new(1024);
@@ -113,7 +112,7 @@ void sstmanager_addsst( sstmanager_t* manager,sstable_t* sst )
 	manager->sst_num++;
 }
 
-void sstmanager_rmsst( sstmanager_t* manager,int id )
+void sstmanager_rmsst(sstmanager_t* manager,int start,int end)
 {
 	int i;
 	char* filename;
@@ -132,12 +131,16 @@ void sstmanager_rmsst( sstmanager_t* manager,int id )
 			goto CLEAR;
 		}
 	}
-	rmsst = ssts[id];
-	ssts[id+1]->next = ssts[id]->next;		//delete sstable from sstable list
-	manager->sst_num--;						//sstable list size decrease 1
-	filename = rmsst->sstdata->filename;
-	sst_close(rmsst);
-	remove(filename);
+	for (i=start; i<=end; i++)
+	{
+		rmsst = ssts[i];
+		ssts[i+1]->next = ssts[i]->next;		//delete sstable from sstable list
+		manager->sst_num--;						//sstable list size decrease 1
+		filename = rmsst->sstdata->filename;
+		sst_close(rmsst);
+		remove(filename);
+	}
+
 CLEAR:
 	xfree(ssts);
 }
@@ -278,10 +281,8 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 		}
 	}
 	//after compact remove sstable
-	for (i=begin; i<=end; i++)
-	{
-		sstmanager_rmsst(manager,i);
-	}
+	sstmanager_rmsst(manager,begin,end);
+
 
 CLEAR:
 	xfree(point);

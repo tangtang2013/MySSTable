@@ -65,7 +65,7 @@ void sstmanager_close(sstmanager_t* manager);
 
 void sstmanager_createsst(sstmanager_t* manager,sst_status status);
 void sstmanager_addsst(sstmanager_t* manager,sstable_t* sst);
-void sstmanager_rmsst(sstmanager_t* manager,int id);
+void sstmanager_rmsst(sstmanager_t* manager,int start,int end);
 
 /************************************
 * @name:	sstmanager_put
