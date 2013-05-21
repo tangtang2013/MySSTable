@@ -22,6 +22,7 @@ void sstmanager_open(sstmanager_t* manager)
 	int ret,i;
 	sstable_t* sst = NULL;
 	
+	//open file of "Manifest",if it exist read file content for get status,if not, init with first status
 	manager->file = fopen(manager->filename,"rb");
 	if (!manager->file)
 	{
@@ -39,9 +40,10 @@ void sstmanager_open(sstmanager_t* manager)
 		manager->sst_num = buffer_getint(manager->buf);
 		manager->max = buffer_getint(manager->buf);
 
+		//sstable id is the last run program's last id
 		manager->current_id = manager->last_id;
 
-		//read sstable...not open
+		//read sstable...not open, because open sstable will use more memory and it will be not use 
 		for (i=manager->last_id-manager->sst_num; i<manager->last_id; i++)
 		{
 			sst = sst_new(i);
@@ -55,6 +57,8 @@ void sstmanager_flush( sstmanager_t* manager )
 {
 	int i,ret;
 	sstable_t* sst;
+
+	//write sstamanager info to file, current id is last id
 	buffer_clear(manager->buf);
 	buffer_seekfirst(manager->buf);
 	buffer_putint(manager->buf,manager->current_id);
@@ -105,6 +109,7 @@ void sstmanager_close( sstmanager_t* manager )
 
 void sstmanager_addsst( sstmanager_t* manager,sstable_t* sst )
 {
+	//add sstable to the head of sstable list
 	sst->next = manager->head;
 	manager->head = sst;
 
@@ -121,6 +126,7 @@ void sstmanager_rmsst(sstmanager_t* manager,int start,int end)
 	sstable_t** ssts;
 	ssts = xmalloc(sizeof(sstable_t*) * manager->sst_num);
 
+	//get sstable
 	for (i=manager->sst_num-1; i>=0; i--)
 	{
 		ssts[i] = psst;
@@ -131,6 +137,8 @@ void sstmanager_rmsst(sstmanager_t* manager,int start,int end)
 			goto CLEAR;
 		}
 	}
+
+	//remove sstables,data,file
 	for (i=start; i<=end; i++)
 	{
 		rmsst = ssts[i];
@@ -147,6 +155,7 @@ CLEAR:
 
 void sstmanager_createsst(sstmanager_t* manager,sst_status status)
 {
+	//use id create a sstable,add to sstable list, open it with status 
 	sstable_t* sst = sst_new(manager->current_id);
 	sstmanager_addsst(manager,sst);
 	sst_open(sst,status);
@@ -155,6 +164,8 @@ void sstmanager_createsst(sstmanager_t* manager,sst_status status)
 int sstmanager_put( sstmanager_t* manager,data_t* data )
 {
 	int ret;
+
+	//if there are nothing in sstable list, create a new sstable in list
 	if (manager->sst_num == 0 || manager->curtable == NULL)
 	{
 		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
@@ -162,7 +173,7 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 	}
 	ret = sst_put(manager->curtable,data);
 
-	//ret = -1 :represent sst full
+	//ret = -1 :represent sst is full
 	if (ret == 0)
 	{
 		return ret;
@@ -261,6 +272,7 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 	{
 		ssts[i] = psst;
 		psst = psst->next;
+		//this if has a problem
 		if (ssts[i]->status == WRITE && ssts[i]->status == WFULL)
 		{
 			printf("I refuse do compact for sstable in writing\n");
@@ -275,7 +287,6 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 
 	while ((getdata=_sstmanager_findsmallest(ssts,datas,num+1,begin,point)) != NULL)
 	{
-		//printf("%s %s %u\n",getdata->key,getdata->value,getdata->hash_value);
 		ret = sst_compactput(manager->compact,getdata);	//ret = 0 is ok,ret != 0 is sst full
 		if (ret != 0)
 		{
@@ -286,9 +297,9 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 		}
 		count++;
 	}
-	sst_flush(manager->compact);
-	//after compact remove sstable
-	sstmanager_rmsst(manager,begin,end);
+
+	sst_flush(manager->compact);						//flush compact sstable
+	sstmanager_rmsst(manager,begin,end);				//after compact remove sstable
 
 
 CLEAR:

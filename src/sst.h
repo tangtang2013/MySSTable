@@ -2,7 +2,7 @@
 #define __SSTABLE_SST_H_
 
 #include "buffer.h"
-#include "data.h"
+#include "sstdata.h"
 #include <stdio.h>
 
 //this enum is sstable status
