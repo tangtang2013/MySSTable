@@ -4,14 +4,15 @@
 typedef struct data_item
 {
 	int key_len;
-	unsigned long hash_value;
+	unsigned long hash_value;		//the hash value of key
 	char* key;
 
 	int value_len;
 	char* value;
-
+	
+	struct data_item* next;			//point 
 	char type;  // 's' and 'd'    
-	unsigned long long version;
+	unsigned long long version;		//data version
 	char addr[1];
 }data_t;
 

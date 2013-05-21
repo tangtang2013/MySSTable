@@ -8,7 +8,6 @@
 #include "buffer.h"
 #include "xmalloc.h"
 #include "debug.h"
-#include "data.h"
 
 unsigned _next_power(unsigned x)
 {
