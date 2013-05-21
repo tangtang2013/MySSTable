@@ -32,20 +32,24 @@ int main()
 	now = time(NULL);
 	printf("use : %d\n",now - start);
 
-    for(i=0; i<200000; i++)
-    {
-        sprintf(key,"key%06d",i);
-        data = sstmanager_get(manager,key);
+	for(i=0; i<200000; i++)
+	{
+		sprintf(key,"key%06d",i);
+		data = sstmanager_get(manager,key);
 		if (data)
 		{
 			count++;
 		}
-    }
+	}
 
 	now = time(NULL);
 	printf("success %d\n",count);
 	printf("use : %d\n",now - start);
-    
+	
+	sstmanager_compact(manager,0,2);
+	now = time(NULL);
+	printf("use : %d\n",now - start);
+
 	sstmanager_flush(manager);
 	sstmanager_close(manager);
 }
