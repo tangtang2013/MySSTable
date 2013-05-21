@@ -156,11 +156,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\data.c"
+				RelativePath="..\..\src\debug.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\debug.c"
+				RelativePath=".\hashtable.c"
 				>
 			</File>
 			<File
@@ -169,6 +169,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\sst.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\sstdata.c"
 				>
 			</File>
 			<File
@@ -198,11 +202,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\data.h"
+				RelativePath="..\..\src\debug.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\debug.h"
+				RelativePath=".\hashtable.h"
 				>
 			</File>
 			<File
@@ -211,6 +215,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\sst.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\sstdata.h"
 				>
 			</File>
 			<File
