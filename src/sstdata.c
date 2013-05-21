@@ -1,4 +1,4 @@
-#include "data.h"
+#include "sstdata.h"
 #include "debug.h"
 #include <sys\stat.h>
 
@@ -21,31 +21,31 @@ void* sstdata_new(int id)
 
 void sstdata_open(sst_data_t* sstdata)
 {
-    int ret;
-    int id;
+	int ret;
+	int id;
 	int i;
 	int filterlen = 0;
 
-    struct _stat info;
-    _stat(sstdata->filename, &info);
-    if(info.st_size <12)
-    {
-        sstdata->key_num = 0;
-        __INFO("file content error:%s",sstdata->filename);
-    }
-    else
-    {
-        sstdata->file = fopen(sstdata->filename,"rb");
-        ret = fread(buffer_detach(sstdata->buf),12,1,sstdata->file);
-        sstdata->buf->NUL = 16;
-        id = buffer_getint(sstdata->buf);
-        sstdata->key_num = buffer_getint(sstdata->buf);
-        sstdata->max = buffer_getint(sstdata->buf);
-        
-        if(sstdata->id != id)
-        {
-            __INFO("file content id:%d not equal read id:%d",sstdata->id,id);
-        }
+	struct _stat info;
+	_stat(sstdata->filename, &info);
+	if(info.st_size <12)
+	{
+		sstdata->key_num = 0;
+		__INFO("file content error:%s",sstdata->filename);
+	}
+	else
+	{
+		sstdata->file = fopen(sstdata->filename,"rb");
+		ret = fread(buffer_detach(sstdata->buf),12,1,sstdata->file);
+		sstdata->buf->NUL = 16;
+		id = buffer_getint(sstdata->buf);
+		sstdata->key_num = buffer_getint(sstdata->buf);
+		sstdata->max = buffer_getint(sstdata->buf);
+
+		if(sstdata->id != id)
+		{
+			__INFO("file content id:%d not equal read id:%d",sstdata->id,id);
+		}
 		if(info.st_size - 12 > sstdata->buf->buflen)
 		{
 			buffer_free(sstdata->buf);
@@ -56,7 +56,7 @@ void sstdata_open(sst_data_t* sstdata)
 		buffer_seekfirst(sstdata->buf);
 		fseek(sstdata->file,12+filterlen,SEEK_SET);
 		ret = fread(buffer_detach(sstdata->buf),1,info.st_size - 12 - filterlen,sstdata->file);
-		
+
 		i = sstdata->key_num;
 		sstdata->keys = (data_t*)xmalloc(sstdata->key_num * sizeof(data_t*));
 		for (i=0; i<sstdata->key_num; i++)
@@ -66,12 +66,12 @@ void sstdata_open(sst_data_t* sstdata)
 
 		sstdata->bigest_key = sstdata->keys[sstdata->key_num-1];
 		sstdata->smallest_key = sstdata->keys[0];
-    }
+	}
 }
 
 void sstdata_build(sst_data_t* sstdata)
 {
-    __INFO("index build : %s",sstdata->filename);
+    __INFO("sstdata build : %s",sstdata->filename);
     sstdata->file = fopen(sstdata->filename,"wb+");
     if(!sstdata->file)
         __PANIC("file open failed -- exiting:%s",sstdata->filename);
@@ -192,7 +192,14 @@ data_t* _sstdata_binarysearch(sst_data_t* sstdata, unsigned int hashvalue, const
 		}
 		else
 		{
-			return sstdata->keys[middle];
+			if (sstdata->keys[middle]->type == 's')
+			{
+				return sstdata->keys[middle];
+			} 
+			else
+			{
+				return NULL;
+			}
 		}
 	}
 	return NULL;
@@ -253,10 +260,10 @@ int sstdata_put(sst_data_t* sstdata,data_t* data)
 {
     if(sstdata->max > sstdata->key_num)
     {
-		sstdata->keys[sstdata->key_num] = data;
+//		sstdata->keys[sstdata->key_num] = data;
 		_sstdata_binaryinsert(sstdata, data);
 		sstdata->key_num++;
-//		_sstdata_sort(sstdata);
+
 		sstdata->bigest_key = sstdata->keys[sstdata->key_num-1];	//will exist a bug 
 		sstdata->smallest_key = sstdata->keys[0];
 		return 0;
