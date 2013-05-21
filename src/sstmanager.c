@@ -42,7 +42,7 @@ void sstmanager_open(sstmanager_t* manager)
 		manager->current_id = manager->last_id;
 
 		//read sstable...not open
-		for (i=0; i<manager->sst_num; i++)
+		for (i=manager->last_id-manager->sst_num; i<manager->last_id; i++)
 		{
 			sst = sst_new(i);
 			sst->next = manager->head;
@@ -214,16 +214,20 @@ data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int 
 		{
 			datas[i] = NULL;
 		}
-		if (ComparatorC(datas[i],datas[(i+number-1)%number]) == 1)
+		if (ComparatorC(datas[i],mindata) == 1)
 		{
-			mindata = datas[(i+number-1)%number];
-			index = (i+number-1)%number;
+//			mindata = datas[(i+number-1)%number];
+//			index = (i+number-1)%number;
 		}
 		else
 		{
 			mindata = datas[i];
 			index = i;
 		}
+	}
+	if (index == -1)
+	{
+		return NULL;
 	}
 	point[index]++;
 	
@@ -239,7 +243,7 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 	sstable_t* psst = manager->head;
 	sstable_t** ssts;
 
-	int i;
+	int i,count = 0;
 	int num = end - begin + 1;
 	if (begin == end || manager->sst_num <= end)
 	{
@@ -278,8 +282,11 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 			sst_flush(manager->compact);
 			sstmanager_createsst(manager,COMPACT);		//create COMPACT sstable
 			manager->compact = manager->head;
+			ret = sst_compactput(manager->compact,getdata);
 		}
+		count++;
 	}
+	sst_flush(manager->compact);
 	//after compact remove sstable
 	sstmanager_rmsst(manager,begin,end);
 

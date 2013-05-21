@@ -51,7 +51,7 @@ void sst_flush(sstable_t* sst)
 
 void sst_close(sstable_t* sst)
 {
-	if (sst->status == COMPACT || sst->status == COMPACTED || sst->status !=UNOPEN)
+	if (sst->status == COMPACT || sst->status == COMPACTED || sst->status ==UNOPEN)
 	{
 			sstdata_free(sst->sstdata);
 	}
