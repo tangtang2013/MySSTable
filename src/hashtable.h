@@ -14,6 +14,10 @@ typedef struct hashtable
 
 	data_t* bigest_key;		//the biggest data
 	data_t* smallest_key;	//the smallest data
+	
+	data_t* nextdata;		//use to iterator point in compact
+	int index;				//
+	int next_num;			//
 
 	int max;				//limit data max number
 
@@ -35,5 +39,7 @@ int hashtable_compactput(hashtable_t* htable,data_t* data);
 void hashtable_relasedata(hashtable_t* htable);
 void hashtable_writehead(hashtable_t* htable);
 void hashtable_writedata(hashtable_t* htable);
+
+data_t* hashtable_nextdata(hashtable_t* htable);
 
 #endif

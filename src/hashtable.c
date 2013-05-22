@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "hashtable.h"
 #include "PMurHash.h"
 #include "xmalloc.h"
@@ -27,6 +28,7 @@ void hashtable_open( hashtable_t* htable )
 	int id;
 	int i;
 	int filterlen = 0;
+	int key_num = 0;
 
 	struct _stat info;
 	_stat(htable->filename, &info);
@@ -41,7 +43,7 @@ void hashtable_open( hashtable_t* htable )
 		ret = fread(buffer_detach(htable->buf),16,1,htable->file);
 		htable->buf->NUL = 20;
 		id = buffer_getint(htable->buf);
-		htable->key_num = buffer_getint(htable->buf);
+		key_num = buffer_getint(htable->buf);
 		htable->max = buffer_getint(htable->buf);
 		htable->bucket_szie = buffer_getint(htable->buf);
 
@@ -62,7 +64,8 @@ void hashtable_open( hashtable_t* htable )
 
 		i = htable->key_num;
 		htable->buckets = (data_t*)xmalloc(htable->bucket_szie * sizeof(data_t*));
-		for (i=0; i<htable->key_num; i++)
+		memset(htable->buckets,0,htable->bucket_szie * sizeof(data_t*));
+		for (i=0; i<key_num; i++)
 		{
 			hashtable_put(htable,buffer_getdata(htable->buf));
 		}
@@ -92,6 +95,7 @@ void hashtable_build( hashtable_t* htable )
 	htable->bucket_szie = 1024*4;
 
 	htable->buckets = (data_t*)xmalloc(htable->bucket_szie * sizeof(data_t*));
+	memset(htable->buckets,0,(htable->bucket_szie * sizeof(data_t*)));
 }
 
 void hashtable_flush( hashtable_t* htable )
@@ -109,6 +113,11 @@ int hashtable_put( hashtable_t* htable,data_t* data )
 {
 	data_t* p = htable->buckets[data->hash_value % htable->bucket_szie];
 	data_t* q = NULL;
+
+	if (htable->key_num >= htable->max)
+	{
+		return 1;	//hashtable is full
+	}
 
 	while(p && CmpKey(p->key, p->key_len, data->key, data->key_len))
 	{
@@ -135,7 +144,7 @@ int hashtable_put( hashtable_t* htable,data_t* data )
 		htable->key_num++;
 	}
 
-	return 1;
+	return 0;
 }
 
 data_t* hashtable_get( hashtable_t* htable,const char* key )
@@ -225,4 +234,59 @@ void hashtable_writedata( hashtable_t* htable )
 
 	ret = fwrite(buffer_detach(htable->buf),htable->buf->NUL,1,htable->file);
 	fflush(htable->file);
+}
+
+data_t* hashtable_nextdata( hashtable_t* htable )
+{
+	data_t* data;
+	if (htable->next_num >= htable->key_num)
+	{
+		return NULL;
+	}
+	while (htable->nextdata == NULL)
+	{
+		htable->nextdata = htable->buckets[htable->index];
+
+		if (htable->index >= htable->bucket_szie)
+		{
+			return NULL;
+		}
+	}
+	data = htable->nextdata;
+	htable->nextdata = htable->nextdata->next;
+	while (htable->nextdata == NULL)
+	{
+		if (htable->index + 1 >= htable->bucket_szie)
+		{
+			break;
+		} 
+		else
+		{
+			htable->index++;
+			htable->nextdata = htable->buckets[htable->index];
+		}
+	}
+	if (data)
+	{
+		htable->next_num++;
+	}
+	return data;
+}
+
+int hashtable_compactput( hashtable_t* htable,data_t* data )
+{
+	int ret;
+	if(htable->max > htable->key_num)
+	{
+		buffer_clear(htable->buf);
+		buffer_putdata(htable->buf,data);
+		ret = fwrite(buffer_detach(htable->buf),htable->buf->NUL,1,htable->file);
+		htable->key_num++;
+		return 0;
+	}
+	else
+	{
+		__INFO("file is full");
+		return 1;
+	}
 }

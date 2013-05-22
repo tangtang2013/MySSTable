@@ -15,22 +15,22 @@ void* sst_new(int id)
 void sst_open(sstable_t* sst,sst_status status)
 {
 	//create sstable in type
-	sst->sstdata = (sst_data_t*)sstdata_new(sst->id);
+	sst->htable = (sst_data_t*)hashtable_new(sst->id);
 	if (status == READ)
 	{
-		sstdata_open(sst->sstdata);
+		hashtable_open(sst->htable);
 		sst->status = READ;
 	} 
 	else if (status == WRITE)
 	{
-		sstdata_build(sst->sstdata);
+		hashtable_build(sst->htable);
 		sst->status = WRITE;
 	}
 	else if (status == COMPACT)				//COMPACT sstable can not get...
 	{
-		sstdata_build(sst->sstdata);
+		hashtable_build(sst->htable);
 		sst->status = COMPACT;
-		sstdata_writehead(sst->sstdata);	//why I write in this? because I want to keep a clear architecture
+		hashtable_writehead(sst->htable);	//why I write in this? because I want to keep a clear architecture
 	}
 }
 
@@ -38,13 +38,13 @@ void sst_flush(sstable_t* sst)
 {
 	if (sst->status == COMPACT)
 	{
-		sstdata_writehead(sst->sstdata);
+		hashtable_writehead(sst->htable);
 		sst->status = COMPACTED;
 	} 
 	else
 	{
-		sstdata_writehead(sst->sstdata);
-		sstdata_writedata(sst->sstdata);
+		hashtable_writehead(sst->htable);
+		hashtable_writedata(sst->htable);
 		sst->status = READ;
 	}
 }
@@ -55,14 +55,14 @@ void sst_close(sstable_t* sst)
 	{
 		//TODO
 	}
-	if (sst->status == COMPACT || sst->status == COMPACTED)
+	else if (sst->status == COMPACT || sst->status == COMPACTED)
 	{
-			sstdata_free(sst->sstdata);
+			hashtable_free(sst->htable);
 	}
 	else if (sst->status != SNULL)
 	{
-		sstdata_relasedata(sst->sstdata);
-		sstdata_free(sst->sstdata);
+		hashtable_relasedata(sst->htable);
+		hashtable_free(sst->htable);
 	}
     
 	xfree(sst);
@@ -70,7 +70,7 @@ void sst_close(sstable_t* sst)
 
 int sst_put(sstable_t* sst,data_t* data)
 {
-    return sstdata_put(sst->sstdata,data);
+    return hashtable_put(sst->htable,data);
 }
 
 data_t* sst_get(sstable_t* sst,const char* key)
@@ -83,13 +83,13 @@ data_t* sst_get(sstable_t* sst,const char* key)
 	{
 		sst_open(sst,READ);
 	}
-    return sstdata_get(sst->sstdata,key);
+    return hashtable_get(sst->htable,key);
 }
 
 int sst_compactput(sstable_t* sst,data_t* data)
 {
 	if (sst->status == COMPACT)
 	{
-		return sstdata_compactput(sst->sstdata,data);
+		return hashtable_compactput(sst->htable,data);
 	}
 }

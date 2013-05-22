@@ -3,6 +3,7 @@
 
 #include "buffer.h"
 #include "sstdata.h"
+#include "hashtable.h"
 #include <stdio.h>
 
 //this enum is sstable status
@@ -22,6 +23,7 @@ typedef struct sstable
 {
     int id;					//id
     sst_data_t* sstdata;	//store data
+	hashtable_t* htable;	//store data(insert quickly)
 	sst_status status;		//sstable status
 
 	struct sstable* prev;	//prev point in sstable list
