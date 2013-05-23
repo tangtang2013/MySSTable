@@ -144,7 +144,7 @@ void sstmanager_rmsst(sstmanager_t* manager,int start,int end)
 		rmsst = ssts[i];
 		ssts[i+1]->next = ssts[i]->next;		//delete sstable from sstable list
 		manager->sst_num--;						//sstable list size decrease 1
-		filename = rmsst->sstdata->filename;
+		filename = rmsst->htable->filename;
 		sst_close(rmsst);
 		remove(filename);
 	}
@@ -217,18 +217,18 @@ data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int 
 	mindata = datas[number-1];//data[....][tail] tail is always null 
 	for (i=0; i<number-1; i++)
 	{
-		if (point[i]<ssts[i]->sstdata->key_num)
+		if (point[i]<ssts[i]->htable->key_num)
 		{
-			datas[i] = ssts[i]->sstdata->keys[point[i]];
+			datas[i] = ssts[i]->htable->datas[point[i]];
 		}
 		else
 		{
 			datas[i] = NULL;
 		}
+
 		if (ComparatorC(datas[i],mindata) == 1)
 		{
-//			mindata = datas[(i+number-1)%number];
-//			index = (i+number-1)%number;
+			//TODO
 		}
 		else
 		{
@@ -264,8 +264,8 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 
 	//init the point, use the sort data
 	point = xmalloc(sizeof(int) * (end - begin + 1));
-	datas = xmalloc(sizeof(data_t*) * (num + 1));
-	ssts = xmalloc(sizeof(sstable_t*) * manager->sst_num);
+	datas = (sstable_t**)xmalloc(sizeof(data_t*) * (num + 1));
+	ssts = (sstable_t**)xmalloc(sizeof(sstable_t*) * manager->sst_num);
 
 	//copy ssts...
 	for (i=manager->sst_num-1; i>=0; i--)
@@ -281,6 +281,11 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 	}
 	//init the data in point with zero
 	memset(point,0,sizeof(int) * (end-begin+1));
+
+	for (i=begin; i<=end; i++)
+	{
+		sst_precompact(ssts[i]);
+	}
 
 	sstmanager_createsst(manager,COMPACT);	//create COMPACT sstable
 	manager->compact = manager->head;

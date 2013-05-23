@@ -57,7 +57,7 @@ void sst_close(sstable_t* sst)
 	}
 	else if (sst->status == COMPACT || sst->status == COMPACTED)
 	{
-			hashtable_free(sst->htable);
+		hashtable_free(sst->htable);
 	}
 	else if (sst->status != SNULL)
 	{
@@ -92,4 +92,13 @@ int sst_compactput(sstable_t* sst,data_t* data)
 	{
 		return hashtable_compactput(sst->htable,data);
 	}
+}
+
+void sst_precompact( sstable_t* sst )
+{
+	if (sst->status == UNOPEN)
+	{
+		sst_open(sst,READ);
+	}
+	hashtable_sort(sst->htable);
 }
