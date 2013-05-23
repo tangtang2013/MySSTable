@@ -19,7 +19,7 @@ void* hashtable_new( int id )
 
 	htable->key_num = -1;	//represent the data structure varie is in not initialized status
 
-	return htable;   
+	return htable;
 }
 
 void hashtable_open( hashtable_t* htable )
@@ -40,7 +40,7 @@ void hashtable_open( hashtable_t* htable )
 	else
 	{
 		htable->file = fopen(htable->filename,"rb");
-		ret = fread(buffer_detach(htable->buf),16,1,htable->file);
+		ret = (int)fread(buffer_detach(htable->buf),16,1,htable->file);
 		htable->buf->NUL = 20;
 		id = buffer_getint(htable->buf);
 		key_num = buffer_getint(htable->buf);
@@ -60,10 +60,10 @@ void hashtable_open( hashtable_t* htable )
 		buffer_clear(htable->buf);
 		buffer_seekfirst(htable->buf);
 		fseek(htable->file,16+filterlen,SEEK_SET);
-		ret = fread(buffer_detach(htable->buf),1,info.st_size - 12 - filterlen,htable->file);
+		ret = (int)fread(buffer_detach(htable->buf),1,info.st_size - 12 - filterlen,htable->file);
 
-		i = htable->key_num;
-		htable->buckets = (data_t*)xmalloc(htable->bucket_szie * sizeof(data_t*));
+		htable->key_num = 0;
+		htable->buckets = (data_t**)xmalloc(htable->bucket_szie * sizeof(data_t*));
 		memset(htable->buckets,0,htable->bucket_szie * sizeof(data_t*));
 		for (i=0; i<key_num; i++)
 		{
@@ -79,13 +79,29 @@ void hashtable_free( hashtable_t* htable )
 {
 	if(htable->file)
 		fclose(htable->file);
+	
+	if (htable->buckets)
+	{
+		xfree(htable->buckets);
+	}
+
+	if (htable->datas)
+	{
+		xfree(htable->datas);
+	}
 
 	if(htable->buf)
 		buffer_free(htable->buf);
+
+	if (htable->locks)
+	{
+		xfree(htable->locks);
+	}
 }
 
 void hashtable_build( hashtable_t* htable )
 {
+	int i;
 	__INFO("hashtable build : %s",htable->filename);
 	htable->file = fopen(htable->filename,"wb+");
 	if(!htable->file)
@@ -94,8 +110,14 @@ void hashtable_build( hashtable_t* htable )
 	htable->key_num = 0;
 	htable->bucket_szie = 1024*4;
 
-	htable->buckets = (data_t*)xmalloc(htable->bucket_szie * sizeof(data_t*));
+	htable->buckets = (data_t**)xmalloc(htable->bucket_szie * sizeof(data_t*));
 	memset(htable->buckets,0,(htable->bucket_szie * sizeof(data_t*)));
+
+	htable->locks = xmalloc(htable->bucket_szie * sizeof(HANDLE));
+	for (i=0; i<htable->bucket_szie; i++)
+	{
+		htable->locks[i] = CreateMutex(0, 0, 0);
+	}
 }
 
 void hashtable_flush( hashtable_t* htable )
@@ -111,22 +133,27 @@ void hashtable_flush( hashtable_t* htable )
 
 int hashtable_put( hashtable_t* htable,data_t* data )
 {
-	data_t* p = htable->buckets[data->hash_value % htable->bucket_szie];
+	data_t* p;
 	data_t* q = NULL;
+	HANDLE hashlock = htable->locks[data->hash_value % htable->bucket_szie];
 
+	TakeLock(hashlock);	//LOCK
+
+	p = htable->buckets[data->hash_value % htable->bucket_szie];
 	if (htable->key_num >= htable->max)
 	{
+		unTakeLock(hashlock);
 		return 1;	//hashtable is full
 	}
 
-	while(p && CmpKey(p->key, p->key_len, data->key, data->key_len))
-	{
+	while(p && Comparator(*p, *data))	//if P is NULL or p equal with data break this (while)
+	{									//
 		q = p;
 		p = p->next;
 	}
 
-	if (p)
-	{
+	if (p)			//find a data in bucket equal with the value I want to insert
+	{				//so replace it
 		if (q)
 		{
 			q->next = data;
@@ -136,13 +163,15 @@ int hashtable_put( hashtable_t* htable,data_t* data )
 			htable->buckets[data->hash_value % htable->bucket_szie] = data;
 		}
 		data->next = p->next;
+		xfree(p);	//release the data
 	} 
 	else
-	{
+	{	//if canot find the data, put data in the head of bucket
 		data->next = htable->buckets[data->hash_value % htable->bucket_szie];
 		htable->buckets[data->hash_value % htable->bucket_szie] = data;
 		htable->key_num++;
 	}
+	unTakeLock(hashlock);	//UnLock
 
 	return 0;
 }
@@ -151,19 +180,25 @@ data_t* hashtable_get( hashtable_t* htable,const char* key )
 {
 	size_t hashValue;
 	data_t* pBucket;
+	HANDLE hashlock;
+
 	if (htable->key_num <= 0)
 	{
 		return NULL;
 	}
 
 	hashValue = PMurHash32(0,key,strlen(key));
+	hashlock = htable->locks[hashValue % htable->bucket_szie];
 
+	TakeLock(hashlock);	//Lock
 	pBucket = htable->buckets[hashValue % htable->bucket_szie];
+
 
 	while(pBucket && 0 != CmpKey(pBucket->key, pBucket->key_len, key, strlen(key)))
 	{
 		pBucket = pBucket->next;
 	}
+	unTakeLock(hashlock);	//UnLock
 
 	if (!pBucket)
 	{
@@ -176,7 +211,7 @@ data_t* hashtable_get( hashtable_t* htable,const char* key )
 
 void hashtable_relasedata( hashtable_t* htable )
 {
-	int ret,i;
+	int i;
 	data_t* data,*temp;
 
 	for (i=0; i<htable->bucket_szie; i++)
@@ -204,7 +239,7 @@ void hashtable_writehead( hashtable_t* htable )
 	__INFO("buffer NUL:%d\n",htable->buf->NUL);
 
 	fseek(htable->file,0,SEEK_SET);
-	ret = fwrite(buffer_detach(htable->buf),1,htable->buf->NUL,htable->file);
+	ret = (int)fwrite(buffer_detach(htable->buf),1,htable->buf->NUL,htable->file);
 	fflush(htable->file);
 
 	__INFO("sstdata:flush data head flush : %s, NUL:%d, ret:%d ",htable->filename,htable->buf->NUL,ret);
@@ -225,14 +260,14 @@ void hashtable_writedata( hashtable_t* htable )
 			buffer_putdata(htable->buf,data);
 			if (htable->buf->NUL > 8192)
 			{
-				ret = fwrite(buffer_detach(htable->buf),htable->buf->NUL,1,htable->file);
+				ret = (int)fwrite(buffer_detach(htable->buf),htable->buf->NUL,1,htable->file);
 				buffer_clear(htable->buf);
 			}
 			data = data->next;
 		}
 	}
 
-	ret = fwrite(buffer_detach(htable->buf),htable->buf->NUL,1,htable->file);
+	ret = (int)fwrite(buffer_detach(htable->buf),htable->buf->NUL,1,htable->file);
 	fflush(htable->file);
 }
 
@@ -247,10 +282,11 @@ data_t* hashtable_nextdata( hashtable_t* htable )
 	{
 		htable->nextdata = htable->buckets[htable->index];
 
-		if (htable->index >= htable->bucket_szie)
+		if (htable->index + 1>= htable->bucket_szie)
 		{
 			return NULL;
 		}
+		htable->index++;
 	}
 	data = htable->nextdata;
 	htable->nextdata = htable->nextdata->next;
@@ -275,7 +311,7 @@ data_t* hashtable_nextdata( hashtable_t* htable )
 
 int hashtable_compactput( hashtable_t* htable,data_t* data )
 {
-	int ret;
+	size_t ret;
 	if(htable->max > htable->key_num)
 	{
 		buffer_clear(htable->buf);
@@ -289,4 +325,86 @@ int hashtable_compactput( hashtable_t* htable,data_t* data )
 		__INFO("file is full");
 		return 1;
 	}
+}
+
+void merge_no_sentinel(data_t** sstDataTable, int iStartKeyNo, int iMiddleKeyNo, int iEndKeyNo)
+{
+	int iLeftKeyLoop, iRightKeyLoop, iSourceKeyLoop;
+
+	int iLeftLength = iMiddleKeyNo - iStartKeyNo + 1;
+	int iRightLength = iEndKeyNo - iMiddleKeyNo;
+	data_t** oData_LeftKeys = (data_t**)xmalloc(sizeof(data_t*)*(iLeftLength));
+	data_t** oData_RightKeys = (data_t**)xmalloc(sizeof(data_t*)*(iRightLength));
+	//将即将要比较的两部分分别存放到oData_LeftKeys和oData_RightKeys中
+	for (iLeftKeyLoop = 0 ; iLeftKeyLoop < iLeftLength ;iLeftKeyLoop ++)
+	{
+		oData_LeftKeys[iLeftKeyLoop] = sstDataTable[iStartKeyNo + iLeftKeyLoop] ;
+	}
+
+	for (iRightKeyLoop = 0 ; iRightKeyLoop < iRightLength ; iRightKeyLoop ++)
+	{
+		oData_RightKeys[iRightKeyLoop] = sstDataTable[iMiddleKeyNo + 1 + iRightKeyLoop];
+	}
+
+	iLeftKeyLoop = iRightKeyLoop = 0;
+	iSourceKeyLoop = iStartKeyNo;
+
+	while(iLeftKeyLoop < iLeftLength  && iRightKeyLoop < iRightLength )
+	{
+		if(Comparator(*oData_LeftKeys[iLeftKeyLoop], *oData_RightKeys[iRightKeyLoop]) < 1)//compare  LeftData with  RightData unfinished
+		{
+			sstDataTable[iStartKeyNo++] = oData_LeftKeys[iLeftKeyLoop++];//将比较小的存到源数据中
+		}
+		else
+		{
+			sstDataTable[iStartKeyNo++] = oData_RightKeys[iRightKeyLoop++];
+		}
+	}
+
+	if (iLeftKeyLoop < iLeftLength)//将左边或者右边的剩余有序部分以此拷贝到源数据中
+	{
+		for(; iLeftKeyLoop < iLeftLength ; iLeftKeyLoop++)
+		{
+			sstDataTable[iStartKeyNo++] = oData_LeftKeys[iLeftKeyLoop];
+		}
+	}else{
+		for(; iRightKeyLoop < iRightLength ; iRightKeyLoop++)
+		{
+			sstDataTable[iStartKeyNo++] = oData_RightKeys[iRightKeyLoop];
+		}
+	}
+	free(oData_LeftKeys);//释放资源
+	free(oData_RightKeys);
+	oData_LeftKeys = NULL;
+	oData_RightKeys = NULL;
+}
+
+void merge_sort(data_t** sstDataTable,int iStartKeyNo,int iEndKeyNo)
+{
+	int iMiddleKeyNo=-1;
+	if( iStartKeyNo < iEndKeyNo )
+	{
+		iMiddleKeyNo = (int)((iStartKeyNo+iEndKeyNo)/2);
+		merge_sort(sstDataTable, iStartKeyNo, iMiddleKeyNo);
+		merge_sort(sstDataTable, iMiddleKeyNo+1, iEndKeyNo);
+		merge_no_sentinel(sstDataTable,iStartKeyNo, iMiddleKeyNo, iEndKeyNo);
+	}
+}
+
+void hashtable_sort( hashtable_t* htable )
+{
+	int i;
+	int count = 0;
+	data_t* data;
+
+	htable->datas = (data_t**)xmalloc(htable->key_num * sizeof(data_t*));
+	memset(htable->datas,0,htable->key_num * sizeof(data_t*));
+
+	for (i=0; i<htable->key_num; i++)
+	{
+		data = hashtable_nextdata(htable);
+		if(data)
+			htable->datas[count++] = data;
+	}
+	merge_sort(htable->datas,0,count-1);
 }

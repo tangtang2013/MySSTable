@@ -9,8 +9,11 @@ typedef struct hashtable
 {
 	int id;
 	int bucket_szie;
-	data_t** buckets;
+	data_t** buckets;		//use to get and insert
+	data_t** datas;			//use to compact
 	int key_num;
+
+	HANDLE* locks;			//buckets lock
 
 	data_t* bigest_key;		//the biggest data
 	data_t* smallest_key;	//the smallest data
@@ -41,5 +44,6 @@ void hashtable_writehead(hashtable_t* htable);
 void hashtable_writedata(hashtable_t* htable);
 
 data_t* hashtable_nextdata(hashtable_t* htable);
+void hashtable_sort(hashtable_t* htable);
 
 #endif
