@@ -240,7 +240,6 @@ struct data_item* buffer_getdata( struct buffer *b )
 {
 	int len;
 	struct data_item* data;
-	char* buf;
 
 	len = buffer_getint(b);
 	data = xmalloc(sizeof(struct data_item) + len + 2);
@@ -266,12 +265,12 @@ bloom_filter* buffer_getfilter( struct buffer *b )
 	bloom_filter* bfilter;
 	int len;
 	char* buf;
-	bfilter= (bloom_filter*)malloc(sizeof(bloom_filter));
+	bfilter= (bloom_filter*)xmalloc(sizeof(bloom_filter));
 	bfilter->filter_size = buffer_getint(b);
 	bfilter->num_buckets = buffer_getint(b);
 
 	len = bfilter->filter_size * sizeof(unsigned);
-	bfilter->filter = malloc(len);
+	bfilter->filter = xmalloc(len);
 
 	buf = buffer_getnstr(b,len);
 	memcpy(bfilter->filter,buf,len);

@@ -1,6 +1,8 @@
 #ifndef __SSTABLE_COMMON_H_
 #define __SSTABLE_COMMON_H_
 
+#include <Windows.h>
+
 typedef struct data_item
 {
 	int key_len;
@@ -11,7 +13,7 @@ typedef struct data_item
 	char* value;
 	
 	struct data_item* next;			//point 
-	char type;  // 's' and 'd'    
+	char type;  // 's' and 'd':d is invalid data, s is valid data
 	unsigned long long version;		//data version
 	char addr[1];
 }data_t;
@@ -26,5 +28,8 @@ int ComparatorC( const data_t* first, const data_t* second );
 
 int SMakeDir(const char* path);
 
+void TakeLock(HANDLE lck);
+void unTakeLock(HANDLE lck);
+int tryTakeLock(HANDLE lck);
 
 #endif

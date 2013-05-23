@@ -1,6 +1,7 @@
 #include "common.h"
 #include "PMurHash.h"
 #include <stdio.h>
+#include <assert.h>
 
 void* create_data(const char* key, int key_len, const char* value, int value_len, char type)
 {
@@ -147,4 +148,32 @@ int ComparatorC( const data_t* first, const data_t* second )
 	}
 
 	return ret;
+}
+
+void TakeLock(HANDLE lck)
+{
+	DWORD ret = WaitForSingleObject(lck, INFINITE);
+	if(ret != WAIT_OBJECT_0) {
+		assert(0);
+	}
+}
+
+void unTakeLock(HANDLE lck)
+{
+	if(ReleaseMutex(lck) == 0) {
+		assert(0);
+	}
+}
+
+int tryTakeLock( HANDLE lck )
+{
+	switch(WaitForSingleObject(lck, 0)) {
+		case WAIT_OBJECT_0:
+			return 1;
+		case WAIT_TIMEOUT:
+			return 0;
+		default:
+			break;
+	}
+	assert(0);
 }
