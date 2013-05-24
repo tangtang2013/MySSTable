@@ -7,13 +7,13 @@ void* sstmanager_new()
 	sstmanager_t* manager = (sstmanager_t*)xmalloc(sizeof(sstmanager_t));
 	memset(manager,0,sizeof(sstmanager_t));
 
-	memset(manager->filename,0,128);
-	sprintf(manager->filename,"Manifest");
+	memset(manager->filename, 0, FILE_MAX_PATH);
+	sprintf(manager->filename, "Manifest");
 
 	manager->max = SSTABLE_MAX;
 	manager->head = NULL;
 
-	manager->buf = buffer_new(1024);
+	manager->buf = buffer_new(BUFFER_MAX_SIZE);
 
 	manager->pool = threadPool_new(2);
 

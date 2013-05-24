@@ -24,7 +24,7 @@ typedef struct hashtable
 
 	int max;				//limit data max number
 
-	char filename[128];		//file name
+	char filename[FILE_MAX_PATH];		//file name
 	FILE *file;				//file handle
 	buffer_t* buf;			//buffer use to serialize
 }hashtable_t;

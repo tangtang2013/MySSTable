@@ -7,7 +7,8 @@
 #include "common.h"
 #include "tinybloom.h"
 
-typedef struct buffer {
+typedef struct buffer 
+{
 	char *buf;
 	int SEEK;
 	int NUL;
