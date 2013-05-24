@@ -14,6 +14,7 @@ typedef enum esst_status
 	WRITE,		//sstable is in wirting
 	READ,		//sstable is in reading
 	WFULL,		//sstable is writing full
+	FLUSH,		//sstable is in flushing
 	COMPACT,	//sstable is in compacting
 	COMPACTED,	//sstable is in compacted
 }sst_status;

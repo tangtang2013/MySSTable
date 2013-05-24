@@ -14,6 +14,9 @@ void* sstmanager_new()
 	manager->head = NULL;
 
 	manager->buf = buffer_new(1024);
+
+	manager->pool = threadPool_new(2);
+
 	return manager;
 }
 
@@ -51,6 +54,7 @@ void sstmanager_open(sstmanager_t* manager)
 			manager->head = sst;
 		}
 	}
+	threadPool_init(manager->pool);
 }
 
 void sstmanager_flush( sstmanager_t* manager )
@@ -85,6 +89,11 @@ void sstmanager_close( sstmanager_t* manager )
 {
 	int i;
 	sstable_t* sst;
+
+	if (manager->pool)
+	{
+		threadPool_destroy(manager->pool);
+	}
 
 	//close all the sstables
 	sst = manager->head;
@@ -164,24 +173,32 @@ void sstmanager_createsst(sstmanager_t* manager,sst_status status)
 int sstmanager_put( sstmanager_t* manager,data_t* data )
 {
 	int ret;
+	sstable_t* cursstable;
 
+	cursstable = manager->head;
 	//if there are nothing in sstable list, create a new sstable in list
-	if (manager->sst_num == 0 || manager->curtable == NULL)
+	if (manager->sst_num == 0 || manager->head == NULL || cursstable->status != WRITE)
 	{
 		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
-		manager->curtable = manager->head;
+		cursstable = manager->head;
 	}
-	ret = sst_put(manager->curtable,data);
+
+	ret = sst_put(cursstable,data);
 
 	//ret = -1 :represent sst is full
 	if (ret == 0)
 	{
 		return ret;
-	} 
+	}
 	else
 	{
-		sst_flush(manager->curtable);
-		manager->curtable->status = WFULL;		//think??? this code is good?
+		//add sstable flush work to threadPool
+		if (cursstable->status != FLUSH)
+		{
+			threadPool_addJob(manager->pool,sst_flush,cursstable);
+			//sst_flush(manager->curtable);
+		}
+		
 		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 		manager->curtable = manager->head;
 		ret = sst_put(manager->curtable,data); 
@@ -263,7 +280,7 @@ void sstmanager_compact( sstmanager_t* manager,int begin,int end )
 	}
 
 	//init the point, use the sort data
-	point = xmalloc(sizeof(int) * (end - begin + 1));
+	point = (int*)xmalloc(sizeof(int) * (end - begin + 1));
 	datas = (sstable_t**)xmalloc(sizeof(data_t*) * (num + 1));
 	ssts = (sstable_t**)xmalloc(sizeof(sstable_t*) * manager->sst_num);
 

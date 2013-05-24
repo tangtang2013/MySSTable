@@ -2,6 +2,7 @@
 #define __SSTABLE_SSTMANAGER_H_
 
 #include "sst.h"
+#include "threadpool.h"
 
 #define SSTABLE_NUM 128
 #define SSTABLE_MAX 128
@@ -21,6 +22,8 @@ typedef struct sstmanager
 	sstable_t* curtable;	//the current work sstable
 	sstable_t* tail;		//the tail of sstable list
 	sstable_t* compact;		//the compact sstable
+
+	threadPool_t* pool;		//thread pool
 
 	FILE* file;				//the file handle
 	char filename[128];		//file name

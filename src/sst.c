@@ -70,7 +70,18 @@ void sst_close(sstable_t* sst)
 
 int sst_put(sstable_t* sst,data_t* data)
 {
-    return hashtable_put(sst->htable,data);
+	int ret = 2;	//do nothing
+	if (sst->status == WRITE)
+	{
+		ret = hashtable_put(sst->htable,data);
+	}
+
+	if (ret == 1)			//change the sstable's status
+	{
+		sst->status = WFULL;
+	}
+
+	return ret;
 }
 
 data_t* sst_get(sstable_t* sst,const char* key)
