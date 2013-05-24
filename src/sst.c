@@ -15,7 +15,7 @@ void* sst_new(int id)
 void sst_open(sstable_t* sst,sst_status status)
 {
 	//create sstable in type
-	sst->htable = (sst_data_t*)hashtable_new(sst->id);
+	sst->htable = (hashtable_t*)hashtable_new(sst->id);
 	if (status == READ)
 	{
 		hashtable_open(sst->htable);
