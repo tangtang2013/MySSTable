@@ -62,6 +62,12 @@ void hashtable_open( hashtable_t* htable )
 		fseek(htable->file,16+filterlen,SEEK_SET);
 		ret = (int)fread(buffer_detach(htable->buf),1,info.st_size - 12 - filterlen,htable->file);
 
+		htable->locks = xmalloc(htable->bucket_szie * sizeof(HANDLE));
+		for (i=0; i<htable->bucket_szie; i++)
+		{
+			htable->locks[i] = CreateMutex(0, 0, 0);
+		}
+		
 		htable->key_num = 0;
 		htable->buckets = (data_t**)xmalloc(htable->bucket_szie * sizeof(data_t*));
 		memset(htable->buckets,0,htable->bucket_szie * sizeof(data_t*));
