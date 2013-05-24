@@ -3,9 +3,14 @@
 
 #include "sst.h"
 #include "threadpool.h"
+#include "common.h"
 
 #define SSTABLE_NUM 128
 #define SSTABLE_MAX 128
+
+
+
+#define BUFFER_MAX_SIZE 1024
 
 //this structure is a manager
 typedef struct sstmanager 
@@ -26,7 +31,7 @@ typedef struct sstmanager
 	threadPool_t* pool;		//thread pool
 
 	FILE* file;				//the file handle
-	char filename[128];		//file name
+	char filename[FILE_MAX_PATH];//file name
 	buffer_t* buf;			//buffer use to serialize
 }sstmanager_t;
 /*

@@ -3,6 +3,8 @@
 
 #include <Windows.h>
 
+#define FILE_MAX_PATH 260
+
 typedef struct data_item
 {
 	int key_len;
