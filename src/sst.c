@@ -8,6 +8,8 @@ void* sst_new(int id)
 
 	sst->status = UNOPEN;	//if a sstable have been new, status is UNOPEN,initial stats is SNULL 
 	sst->id = id;
+
+	sst->lock = CreateMutex(0, 0, 0);
   
     return sst;
 }
@@ -64,6 +66,8 @@ void sst_close(sstable_t* sst)
 		hashtable_relasedata(sst->htable);
 		hashtable_free(sst->htable);
 	}
+
+	CloseHandle(sst->lock);
     
 	xfree(sst);
 }

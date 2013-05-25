@@ -16,6 +16,7 @@ void* sstmanager_new()
 	manager->buf = buffer_new(BUFFER_MAX_SIZE);
 
 	manager->pool = threadPool_new(2);
+	manager->lock = CreateMutex(0,0,0);
 
 	return manager;
 }
@@ -105,6 +106,8 @@ void sstmanager_close( sstmanager_t* manager )
 		sst = manager->head;
 	}
 
+	ReleaseMutex(manager->lock);
+
 	if (manager->buf)
 	{
 		buffer_free(manager->buf);
@@ -174,14 +177,18 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 {
 	int ret;
 	sstable_t* cursstable;
-
+	
+	TakeLock(manager->lock);
+	
 	cursstable = manager->head;
 	//if there are nothing in sstable list, create a new sstable in list
-	if (manager->sst_num == 0 || manager->head == NULL || cursstable->status != WRITE)
+	if (manager->sst_num == 0 || manager->head == NULL)
 	{
 		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 		cursstable = manager->head;
+		printf("----%d %s\n",cursstable->id,data->key);
 	}
+	unTakeLock(manager->lock);
 
 	ret = sst_put(cursstable,data);
 
@@ -190,16 +197,21 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 	{
 		return ret;
 	}
-	else
+	else if (ret == 1)
 	{
+		TakeLock(manager->lock);
+		TakeLock(cursstable->lock);
 		//add sstable flush work to threadPool
-		if (cursstable->status != FLUSH)
+		if (cursstable->status == WFULL && cursstable->status != FLUSH)
 		{
 			threadPool_addJob(manager->pool,sst_flush,cursstable);
 			//sst_flush(manager->curtable);
+			sstmanager_createsst(manager,WRITE);	//create WRITE sstable
+			printf("ret : %d===%d %s\n",ret,cursstable->id,data->key);
 		}
+		unTakeLock(cursstable->lock);
+		unTakeLock(manager->lock);
 		
-		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 		manager->curtable = manager->head;
 		ret = sst_put(manager->curtable,data); 
 		return ret;

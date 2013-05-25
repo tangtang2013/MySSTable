@@ -29,6 +29,7 @@ typedef struct sstmanager
 	sstable_t* compact;		//the compact sstable
 
 	threadPool_t* pool;		//thread pool
+	HANDLE lock;			//lock
 
 	FILE* file;				//the file handle
 	char filename[FILE_MAX_PATH];//file name

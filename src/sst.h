@@ -27,6 +27,8 @@ typedef struct sstable
 	hashtable_t* htable;	//store data(insert quickly)
 	sst_status status;		//sstable status
 
+	HANDLE lock;			//sstable lock
+
 	struct sstable* prev;	//prev point in sstable list
 	struct sstable* next;	//next point in sstable list
 }sstable_t;
