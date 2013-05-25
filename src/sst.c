@@ -42,7 +42,13 @@ void sst_flush(sstable_t* sst)
 	{
 		hashtable_writehead(sst->htable);
 		sst->status = COMPACTED;
-	} 
+	}
+	else if (sst->status == WFULL)
+	{
+		hashtable_writehead(sst->htable);
+		hashtable_writedata(sst->htable);
+		sst->status = FLUSH;
+	}
 	else
 	{
 		hashtable_writehead(sst->htable);

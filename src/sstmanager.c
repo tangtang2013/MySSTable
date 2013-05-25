@@ -192,7 +192,7 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 
 	ret = sst_put(cursstable,data);
 
-	//ret = -1 :represent sst is full
+	//ret = 1 :represent sst is full
 	if (ret == 0)
 	{
 		return ret;
@@ -202,18 +202,19 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 		TakeLock(manager->lock);
 		TakeLock(cursstable->lock);
 		//add sstable flush work to threadPool
-		if (cursstable->status == WFULL && cursstable->status != FLUSH)
+		if (cursstable->status == WFULL)
 		{
 			threadPool_addJob(manager->pool,sst_flush,cursstable);
+			cursstable->status = FLUSH;
 			//sst_flush(manager->curtable);
 			sstmanager_createsst(manager,WRITE);	//create WRITE sstable
-			printf("ret : %d===%d %s\n",ret,cursstable->id,data->key);
+			printf("ret : %d===%d %d %s\n",ret,cursstable->id,cursstable,data->key);
 		}
 		unTakeLock(cursstable->lock);
+		cursstable = manager->head;
 		unTakeLock(manager->lock);
 		
-		manager->curtable = manager->head;
-		ret = sst_put(manager->curtable,data); 
+		ret = sst_put(cursstable,data); 
 		return ret;
 	}
 }

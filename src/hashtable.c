@@ -217,7 +217,7 @@ data_t* hashtable_get( hashtable_t* htable,const char* key )
 
 void hashtable_relasedata( hashtable_t* htable )
 {
-	int i;
+	int i,count = 0;
 	data_t* data,*temp;
 
 	for (i=0; i<htable->bucket_szie; i++)
@@ -228,8 +228,10 @@ void hashtable_relasedata( hashtable_t* htable )
 			temp = data->next;
 			xfree(data);
 			data = temp;
+			count++;
 		}
 	}
+	printf("release data : %d\n",count);
 }
 
 void hashtable_writehead( hashtable_t* htable )
@@ -242,7 +244,7 @@ void hashtable_writehead( hashtable_t* htable )
 	buffer_putint(htable->buf,htable->max);
 	buffer_putint(htable->buf,htable->bucket_szie);
 
-	__INFO("buffer NUL:%d\n",htable->buf->NUL);
+	__INFO("buffer NUL:%d",htable->buf->NUL);
 
 	fseek(htable->file,0,SEEK_SET);
 	ret = (int)fwrite(buffer_detach(htable->buf),1,htable->buf->NUL,htable->file);
