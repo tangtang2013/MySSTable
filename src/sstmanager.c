@@ -177,12 +177,12 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 {
 	int ret;
 	sstable_t* cursstable;
-	
+
+REPEAT:
 	TakeLock(manager->lock);
-	
 	cursstable = manager->head;
 	//if there are nothing in sstable list, create a new sstable in list
-	if (manager->sst_num == 0 || manager->head == NULL)
+	if (manager->sst_num == 0 || manager->head == NULL || cursstable->status == UNOPEN)
 	{
 		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 		cursstable = manager->head;
@@ -195,6 +195,7 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 	//ret = 1 :represent sst is full
 	if (ret == 0)
 	{
+		//printf("ret : %d -- %s\n",ret,data->key);
 		return ret;
 	}
 	else if (ret == 1)
@@ -206,16 +207,26 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 		{
 			threadPool_addJob(manager->pool,sst_flush,cursstable);
 			cursstable->status = FLUSH;
-			//sst_flush(manager->curtable);
 			sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 			printf("ret : %d===%d %d %s\n",ret,cursstable->id,cursstable,data->key);
 		}
 		unTakeLock(cursstable->lock);
 		cursstable = manager->head;
 		unTakeLock(manager->lock);
-		
+
 		ret = sst_put(cursstable,data); 
+
+		if (ret == 2)
+		{
+			printf("[goto1] ret : %d -- %s\n",ret,data->key);
+			goto REPEAT;
+		}
 		return ret;
+	}
+	else if (ret == 2)
+	{
+		printf("[goto2] ret : %d -- %s\n",ret,data->key);
+		goto REPEAT;
 	}
 }
 
@@ -240,7 +251,7 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 
 data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int start,int* point)
 {
-	int i;
+	int i,ret;
 	int index= -1;
 	data_t* mindata;//data[....][tail] tail is always null
 	datas[number-1] = NULL;
@@ -256,9 +267,27 @@ data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int 
 			datas[i] = NULL;
 		}
 
-		if (ComparatorC(datas[i],mindata) == 1)
+		ret = ComparatorC(datas[i],mindata);
+		if (ret == 1)
 		{
 			//TODO
+		}
+		else if (ret == 0)	//version
+		{
+			if (mindata == NULL)
+			{
+				//TODO
+			}
+			else if (mindata->version > datas[i]->version)
+			{
+				point[i]++;
+			}
+			else
+			{
+				mindata = datas[i];
+				point[index]++;
+				index = i;
+			}
 		}
 		else
 		{
@@ -270,6 +299,7 @@ data_t* _sstmanager_findsmallest(sstable_t** ssts,data_t** datas,int number,int 
 	{
 		return NULL;
 	}
+
 	point[index]++;
 	
 	return mindata;
