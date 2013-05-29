@@ -16,7 +16,7 @@
 typedef struct sstmanager 
 {
 	int last_id;			//last sstable id
-	int current_id;			//current work sstable(write)
+	int current_id;			//current work sstable(not only write)
 	int sst_num;			//the number of sstable
 	int max;				//the max number of sstable
 
@@ -27,6 +27,7 @@ typedef struct sstmanager
 	sstable_t* curtable;	//the current work sstable
 	sstable_t* tail;		//the tail of sstable list
 	sstable_t* compact;		//the compact sstable
+	sstable_t* writetable;	//the writing sstable(only one in list)
 
 	threadPool_t* pool;		//thread pool
 	HANDLE lock;			//lock

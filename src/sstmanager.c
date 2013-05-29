@@ -171,6 +171,10 @@ void sstmanager_createsst(sstmanager_t* manager,sst_status status)
 	sstable_t* sst = sst_new(manager->current_id);
 	sstmanager_addsst(manager,sst);
 	sst_open(sst,status);
+	if (status == WRITE)
+	{
+		manager->writetable = manager->head;
+	}
 }
 
 int sstmanager_put( sstmanager_t* manager,data_t* data )
@@ -185,7 +189,7 @@ REPEAT:
 	if (manager->sst_num == 0 || manager->head == NULL || cursstable->status == UNOPEN)
 	{
 		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
-		cursstable = manager->head;
+		cursstable = manager->writetable;
 		printf("----%d %s\n",cursstable->id,data->key);
 	}
 	unTakeLock(manager->lock);
@@ -211,7 +215,7 @@ REPEAT:
 			printf("ret : %d===%d %d %s\n",ret,cursstable->id,cursstable,data->key);
 		}
 		unTakeLock(cursstable->lock);
-		cursstable = manager->head;
+		cursstable = manager->writetable;
 		unTakeLock(manager->lock);
 
 		ret = sst_put(cursstable,data); 
