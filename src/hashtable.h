@@ -13,7 +13,8 @@ typedef struct hashtable
 	data_t** datas;			//use to compact
 	int key_num;
 
-	HANDLE* locks;			//buckets lock
+	HANDLE* bucket_locks;	//buckets lock
+	HANDLE* num_lock;		//number lock
 
 	data_t* bigest_key;		//the biggest data
 	data_t* smallest_key;	//the smallest data

@@ -62,11 +62,12 @@ void hashtable_open( hashtable_t* htable )
 		fseek(htable->file,16+filterlen,SEEK_SET);
 		ret = (int)fread(buffer_detach(htable->buf),1,info.st_size - 12 - filterlen,htable->file);
 
-		htable->locks = xmalloc(htable->bucket_szie * sizeof(HANDLE));
+		htable->bucket_locks = xmalloc(htable->bucket_szie * sizeof(HANDLE));
 		for (i=0; i<htable->bucket_szie; i++)
 		{
-			htable->locks[i] = CreateMutex(0, 0, 0);
+			htable->bucket_locks[i] = CreateMutex(0, 0, 0);
 		}
+		htable->num_lock = CreateMutex(0,0,0);
 		
 		htable->key_num = 0;
 		htable->buckets = (data_t**)xmalloc(htable->bucket_szie * sizeof(data_t*));
@@ -99,9 +100,9 @@ void hashtable_free( hashtable_t* htable )
 	if(htable->buf)
 		buffer_free(htable->buf);
 
-	if (htable->locks)
+	if (htable->bucket_locks)
 	{
-		xfree(htable->locks);
+		xfree(htable->bucket_locks);
 	}
 }
 
@@ -119,11 +120,12 @@ void hashtable_build( hashtable_t* htable )
 	htable->buckets = (data_t**)xmalloc(htable->bucket_szie * sizeof(data_t*));
 	memset(htable->buckets,0,(htable->bucket_szie * sizeof(data_t*)));
 
-	htable->locks = xmalloc(htable->bucket_szie * sizeof(HANDLE));
+	htable->bucket_locks = xmalloc(htable->bucket_szie * sizeof(HANDLE));
 	for (i=0; i<htable->bucket_szie; i++)
 	{
-		htable->locks[i] = CreateMutex(0, 0, 0);
+		htable->bucket_locks[i] = CreateMutex(0, 0, 0);
 	}
+	htable->num_lock = CreateMutex(0,0,0);
 }
 
 void hashtable_flush( hashtable_t* htable )
@@ -141,17 +143,18 @@ int hashtable_put( hashtable_t* htable,data_t* data )
 {
 	data_t* p;
 	data_t* q = NULL;
-	HANDLE hashlock = htable->locks[data->hash_value % htable->bucket_szie];
-
-	TakeLock(hashlock);	//LOCK
-
+	HANDLE hashlock = htable->bucket_locks[data->hash_value % htable->bucket_szie];
 	p = htable->buckets[data->hash_value % htable->bucket_szie];
+
+	TakeLock(htable->num_lock);	//LOCK number
 	if (htable->key_num >= htable->max)
 	{
-		unTakeLock(hashlock);
+		unTakeLock(htable->num_lock);
 		return 1;	//hashtable is full
 	}
+	unTakeLock(htable->num_lock);
 
+	TakeLock(hashlock);	//LOCK buckets
 	while(p && Comparator(*p, *data))	//if P is NULL or p equal with data break this (while)
 	{									//
 		q = p;
@@ -175,7 +178,10 @@ int hashtable_put( hashtable_t* htable,data_t* data )
 	{	//if canot find the data, put data in the head of bucket
 		data->next = htable->buckets[data->hash_value % htable->bucket_szie];
 		htable->buckets[data->hash_value % htable->bucket_szie] = data;
+		
+		TakeLock(htable->num_lock);	//LOCK number
 		htable->key_num++;
+		unTakeLock(htable->num_lock);
 	}
 	unTakeLock(hashlock);	//UnLock
 
@@ -194,7 +200,7 @@ data_t* hashtable_get( hashtable_t* htable,const char* key )
 	}
 
 	hashValue = PMurHash32(0,key,strlen(key));
-	hashlock = htable->locks[hashValue % htable->bucket_szie];
+	hashlock = htable->bucket_locks[hashValue % htable->bucket_szie];
 
 	TakeLock(hashlock);	//Lock
 	pBucket = htable->buckets[hashValue % htable->bucket_szie];
