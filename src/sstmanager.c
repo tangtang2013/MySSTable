@@ -17,13 +17,14 @@ void* sstmanager_new()
 
 	manager->pool = threadPool_new(2);
 	manager->lock = CreateMutex(0,0,0);
+	manager->compact_semaphore = CreateSemaphore(NULL,0,1,NULL);
 
 	return manager;
 }
 
 void sstmanager_open(sstmanager_t* manager)
 {
-	int ret,i;
+	int ret,i,id;
 	sstable_t* sst = NULL;
 	
 	//open file of "Manifest",if it exist read file content for get status,if not, init with first status
@@ -38,24 +39,56 @@ void sstmanager_open(sstmanager_t* manager)
 	else
 	{
 		manager->file = fopen(manager->filename,"rb");
-		ret = fread(buffer_detach(manager->buf),12,1,manager->file);
-		manager->buf->NUL = 12;
+		ret = fread(buffer_detach(manager->buf),20,1,manager->file);
+		manager->buf->NUL = 20;
 		manager->last_id = buffer_getint(manager->buf);
 		manager->sst_num = buffer_getint(manager->buf);
 		manager->max = buffer_getint(manager->buf);
 
+		manager->uncompact_num = buffer_getint(manager->buf);
+		manager->compact_num = buffer_getint(manager->buf);
+
 		//sstable id is the last run program's last id
 		manager->current_id = manager->last_id;
 
-		//read sstable...not open, because open sstable will use more memory and it will be not use 
-		for (i=manager->last_id-manager->sst_num; i<manager->last_id; i++)
+		ret = fread(buffer_detach(manager->buf),(manager->uncompact_num + manager->compact_num) * sizeof(int),1,manager->file);
+		buffer_seekfirst(manager->buf);
+
+		//read uncompact sstable info
+		i = manager->uncompact_num;
+		while (i--)
 		{
-			sst = sst_new(i);
-			sst->next = manager->head;
-			manager->head = sst;
+			id = buffer_getint(manager->buf);
+			sst = sst_new(id);
+			if (manager->uncompact == NULL)
+			{
+				manager->uncompact = sst;
+			}
+			else
+			{
+				manager->uncompact->next = sst;
+			}
+		}
+
+		//read compact sstable info
+		i = manager->compact_num;
+		while (i--)
+		{
+			id = buffer_getint(manager->buf);
+			sst = sst_new(id);
+			if (manager->compact == NULL)
+			{
+				manager->compact = sst;
+			}
+			else
+			{
+				manager->compact->next = sst;
+			}
 		}
 	}
 	threadPool_init(manager->pool);
+	manager->compact_run = TRUE;
+//	manager->compact_thread = CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)sstmanager_checkcompact,manager,0,NULL);
 }
 
 void sstmanager_flush( sstmanager_t* manager )
@@ -70,12 +103,41 @@ void sstmanager_flush( sstmanager_t* manager )
 	buffer_putint(manager->buf,manager->sst_num);
 	buffer_putint(manager->buf,manager->max);
 
+	buffer_putint(manager->buf,manager->uncompact_num);
+	buffer_putint(manager->buf,manager->compact_num);
+
+	//write uncompact sstable info
+	sst = manager->uncompact;
+	while (sst)
+	{
+		buffer_putint(manager->buf,sst->id);
+		sst = sst->next;
+	}
+
+	//write compact sstable info
+	sst = manager->compact;
+	while (sst)
+	{
+		buffer_putint(manager->buf,sst->id);
+		sst = sst->next;
+	}
+
 	manager->file = fopen(manager->filename,"wb+");//wb+
 	ret = fwrite(buffer_detach(manager->buf),1,manager->buf->NUL,manager->file);
 	fclose(manager->file);
 	
 	//only flush the sstable in WRITE and COMPACT status,because other status ssstable no change
-	sst = manager->head;
+	sst = manager->uncompact;
+	while (sst && sst->status != SNULL)
+	{
+		if (sst->status == WRITE || sst->status == COMPACT)
+		{
+			sst_flush(sst);
+		}
+		sst = sst->next;
+	}
+
+	sst = manager->compact;
 	while (sst && sst->status != SNULL)
 	{
 		if (sst->status == WRITE || sst->status == COMPACT)
@@ -97,13 +159,22 @@ void sstmanager_close( sstmanager_t* manager )
 	}
 
 	//close all the sstables
-	sst = manager->head;
+	sst = manager->uncompact;
 	while (sst)
 	{
-		manager->head = sst->next;
+		manager->uncompact = sst->next;
 		sst->next = NULL;
 		sst_close(sst);
-		sst = manager->head;
+		sst = manager->uncompact;
+	}
+
+	sst = manager->compact;
+	while (sst)
+	{
+		manager->compact = sst->next;
+		sst->next = NULL;
+		sst_close(sst);
+		sst = manager->compact;
 	}
 
 	ReleaseMutex(manager->lock);
@@ -122,11 +193,24 @@ void sstmanager_close( sstmanager_t* manager )
 void sstmanager_addsst( sstmanager_t* manager,sstable_t* sst )
 {
 	//add sstable to the head of sstable list
-	sst->next = manager->head;
-	manager->head = sst;
+// 	sst->next = manager->head;
+// 	manager->head = sst;
 
 	manager->current_id++;
 	manager->sst_num++;
+
+	if (sst->status == COMPACT)
+	{
+		manager->compact_num++;
+		sst->next = manager->compact;
+		manager->compact = sst;
+	}
+	else
+	{
+		manager->uncompact_num++;
+		sst->next = manager->uncompact;
+		manager->uncompact = sst;
+	}
 }
 
 void sstmanager_rmsst(sstmanager_t* manager,int start,int end)
@@ -173,7 +257,12 @@ void sstmanager_createsst(sstmanager_t* manager,sst_status status)
 	sst_open(sst,status);
 	if (status == WRITE)
 	{
-		manager->writetable = manager->head;
+		manager->writetable = manager->uncompact;
+	}
+
+	if (manager->sst_num > 5)
+	{
+		//notify
 	}
 }
 
@@ -184,9 +273,9 @@ int sstmanager_put( sstmanager_t* manager,data_t* data )
 
 REPEAT:
 	TakeLock(manager->lock);
-	cursstable = manager->head;
+	cursstable = manager->uncompact;
 	//if there are nothing in sstable list, create a new sstable in list
-	if (manager->sst_num == 0 || manager->head == NULL || cursstable->status == UNOPEN)
+	if (manager->sst_num == 0 || manager->uncompact == NULL || cursstable->status == UNOPEN)
 	{
 		sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 		cursstable = manager->writetable;
@@ -207,12 +296,13 @@ REPEAT:
 		TakeLock(manager->lock);
 		TakeLock(cursstable->lock);
 		//add sstable flush work to threadPool
+		printf("[%d] ret:%d->%d %x %d %s\n",GetCurrentThreadId(),ret,cursstable->id,cursstable,cursstable->status,data->key);
 		if (cursstable->status == WFULL)
 		{
 			threadPool_addJob(manager->pool,sst_flush,cursstable);
 			cursstable->status = FLUSH;
 			sstmanager_createsst(manager,WRITE);	//create WRITE sstable
-			printf("ret : %d===%d %d %s\n",ret,cursstable->id,cursstable,data->key);
+			printf("[%d] ret:%d->%d %x %d %s\n",GetCurrentThreadId(),ret,cursstable->id,cursstable,cursstable->status,data->key);
 		}
 		unTakeLock(cursstable->lock);
 		cursstable = manager->writetable;
@@ -239,7 +329,7 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 	int i = manager->sst_num - 1;
 	sstable_t* pos;
 	data_t* data = NULL;
-	pos = manager->head;
+	pos = manager->uncompact;
 	while (pos && pos->status != SNULL && i >= 0)
 	{
 		data = sst_get(pos,key);
@@ -375,4 +465,21 @@ CLEAR:
 	xfree(point);
 	xfree(datas);
 	xfree(ssts);
+}
+
+void sstmanager_checkcompact( void* arg )
+{
+	sstmanager_t* manager = (sstmanager_t*)arg;
+	while (manager->compact_run)
+	{
+		if (manager->sst_num > 5)
+		{
+			sstmanager_compact(manager,manager->start_id,manager->current_id - 2);
+			Sleep(30000);
+		}
+		else
+		{
+			//waiting
+		}
+	}
 }

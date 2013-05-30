@@ -20,6 +20,9 @@ typedef struct sstmanager
 	int sst_num;			//the number of sstable
 	int max;				//the max number of sstable
 
+	int compact_num;		//the number of compact sstables
+	int uncompact_num;		//the number of uncompact sstables;
+
 	int start_id;			//start id of sstables
 	int end_id;				//end id of sstables;
 
@@ -27,10 +30,14 @@ typedef struct sstmanager
 	sstable_t* curtable;	//the current work sstable
 	sstable_t* tail;		//the tail of sstable list
 	sstable_t* compact;		//the compact sstable
+	sstable_t* uncompact;		//the not compact sstable
 	sstable_t* writetable;	//the writing sstable(only one in list)
 
 	threadPool_t* pool;		//thread pool
 	HANDLE lock;			//lock
+	HANDLE compact_thread;	//the handle of compact thread
+	HANDLE compact_semaphore;//the semaphore of compact
+	BOOL compact_run;		//the flag of compact
 
 	FILE* file;				//the file handle
 	char filename[FILE_MAX_PATH];//file name
@@ -100,5 +107,7 @@ data_t* sstmanager_get(sstmanager_t* manager,const char* key);
 * @ret:		VOID
 *************************************/
 void sstmanager_compact(sstmanager_t* manager,int begin,int end);
+
+void sstmanager_checkcompact(void* arg);
 
 #endif

@@ -262,7 +262,7 @@ void hashtable_writehead( hashtable_t* htable )
 	ret = (int)fwrite(buffer_detach(htable->buf),1,htable->buf->NUL,htable->file);
 	fflush(htable->file);
 
-	__INFO("sstdata:flush data head flush : %s, NUL:%d, ret:%d ",htable->filename,htable->buf->NUL,ret);
+	__INFO("hashtable:flush hashtable head : %s, NUL:%d, ret:%d ",htable->filename,htable->buf->NUL,ret);
 
 	buffer_clear(htable->buf);
 }
@@ -289,6 +289,7 @@ void hashtable_writedata( hashtable_t* htable )
 
 	ret = (int)fwrite(buffer_detach(htable->buf),htable->buf->NUL,1,htable->file);
 	fflush(htable->file);
+	__INFO("hashtable:flush data : %s, NUL:%d, number:%d ",htable->filename,htable->buf->NUL,htable->key_num);
 }
 
 data_t* hashtable_nextdata( hashtable_t* htable )
