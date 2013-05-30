@@ -146,13 +146,13 @@ int hashtable_put( hashtable_t* htable,data_t* data )
 	HANDLE hashlock = htable->bucket_locks[data->hash_value % htable->bucket_szie];
 	p = htable->buckets[data->hash_value % htable->bucket_szie];
 
-	TakeLock(htable->num_lock);	//LOCK number
-	if (htable->key_num >= htable->max)
-	{
-		unTakeLock(htable->num_lock);
-		return 1;	//hashtable is full
-	}
-	unTakeLock(htable->num_lock);
+// 	TakeLock(htable->num_lock);	//LOCK number
+// 	if (htable->key_num >= htable->max)
+// 	{
+// 		unTakeLock(htable->num_lock);
+// 		return 1;	//hashtable is full
+// 	}
+// 	unTakeLock(htable->num_lock);
 
 	TakeLock(hashlock);	//LOCK buckets
 	while(p && Comparator(*p, *data))	//if P is NULL or p equal with data break this (while)
@@ -176,12 +176,18 @@ int hashtable_put( hashtable_t* htable,data_t* data )
 	} 
 	else
 	{	//if canot find the data, put data in the head of bucket
-		data->next = htable->buckets[data->hash_value % htable->bucket_szie];
-		htable->buckets[data->hash_value % htable->bucket_szie] = data;
-		
 		TakeLock(htable->num_lock);	//LOCK number
+		if (htable->key_num >= htable->max)
+		{
+			unTakeLock(htable->num_lock);
+			unTakeLock(hashlock);	//UnLock
+			return 1;	//hashtable is full
+		}
 		htable->key_num++;
 		unTakeLock(htable->num_lock);
+
+		data->next = htable->buckets[data->hash_value % htable->bucket_szie];
+		htable->buckets[data->hash_value % htable->bucket_szie] = data;
 	}
 	unTakeLock(hashlock);	//UnLock
 
