@@ -88,7 +88,11 @@ int sst_put(sstable_t* sst,data_t* data)
 
 	if (ret == 1)			//change the sstable's status
 	{
-		sst->status = WFULL;
+//		TakeLock(sst->lock);
+//		printf("[%d]sst : %d status : %d\n",GetCurrentThreadId(),sst->id,sst->status);
+//		sst->status = WFULL;
+//		printf("[%d]sst : %d status : %d\n",GetCurrentThreadId(),sst->id,sst->status);
+//		unTakeLock(sst->lock);
 	}
 
 	return ret;

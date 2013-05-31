@@ -297,10 +297,10 @@ REPEAT:
 		TakeLock(cursstable->lock);
 		//add sstable flush work to threadPool
 		printf("[%d] ret:%d->%d %x %d %s\n",GetCurrentThreadId(),ret,cursstable->id,cursstable,cursstable->status,data->key);
-		if (cursstable->status == WFULL)
+		if (cursstable->status == WRITE)
 		{
-			threadPool_addJob(manager->pool,sst_flush,cursstable);
 			cursstable->status = FLUSH;
+			threadPool_addJob(manager->pool,sst_flush,cursstable);
 			sstmanager_createsst(manager,WRITE);	//create WRITE sstable
 			printf("[%d] ret:%d->%d %x %d %s\n",GetCurrentThreadId(),ret,cursstable->id,cursstable,cursstable->status,data->key);
 		}
