@@ -46,8 +46,7 @@ typedef struct msg_get_request
 	eMsgType type;
 	int nKeySize;
 	char* pKey;
-	int nValueSize;
-	char* pValue;
+
 	char buf[1];
 }stMsgGetRequest;
 
@@ -55,16 +54,17 @@ typedef struct msg_get_reply
 {
 	eMsgType type;
 	int nRet;
+	data_t* pData;
 }stMsgGetReply;
 
 //get...request
-stMsgPutRequest* CreateMsgGetRequestSt(char* pKey, int nKeySize);
-void* CreateMsgGetRequestBuf(stMsgPutRequest* pMsgPut);
-stMsgPutRequest* ParseMsgGetRequestBuf(char* pBuf);
+stMsgGetRequest* CreateMsgGetRequestSt(char* pKey, int nKeySize);
+void* CreateMsgGetRequestBuf(stMsgGetRequest* pMsgGet);
+stMsgGetRequest* ParseMsgGetRequestBuf(char* pBuf);
 
 //get...reply
-stMsgPutReply* CreateMsgGetReplySt(int nRet);
-void* CreateMsgGetReplyBuf(stMsgPutReply* pMsgPut);
-stMsgPutReply* ParseMsgGetReplyBuf(char* pBuf);
+stMsgGetReply* CreateMsgGetReplySt(int nRet, data_t* pData);
+void* CreateMsgGetReplyBuf(stMsgGetReply* pMsgPut);
+stMsgGetReply* ParseMsgGetReplyBuf(char* pBuf);
 
 #endif

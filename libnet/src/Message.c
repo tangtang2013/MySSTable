@@ -140,3 +140,110 @@ stMsgPutReply* ParseMsgPutReplyBuf( char* pBuf )
 	return pMsgPut;
 }
 
+stMsgGetRequest* CreateMsgGetRequestSt( char* pKey, int nKeySize )
+{
+	stMsgGetRequest* pMsg = (stMsgGetRequest*)malloc(sizeof(stMsgPutRequest) + nKeySize);
+
+	pMsg->type = GET_REQUEST;
+	pMsg->nKeySize = nKeySize;
+
+	memcpy(pMsg->buf+1, pKey, nKeySize);
+
+	pMsg->pKey = pMsg->buf+1;
+
+	return pMsg;
+}
+
+void* CreateMsgGetRequestBuf( stMsgGetRequest* pMsgGet )
+{
+	int nBufferSize;
+	char* pBuffer;
+	int offset = 0;
+	int len = 0;
+	nBufferSize = 3 * sizeof(int) + pMsgGet->nKeySize;
+
+	pBuffer = malloc(nBufferSize);
+	memset(pBuffer,0,nBufferSize);
+
+	len = sizeof(pMsgGet->type);
+	memcpy(pBuffer + offset, &pMsgGet->type, len);
+	offset += len;
+
+	len = sizeof(int);
+	memcpy(pBuffer + offset, &pMsgGet->nKeySize, len);
+	offset += len;
+
+	memcpy(pBuffer + offset, pMsgGet->pKey, pMsgGet->nKeySize);
+	offset += pMsgGet->nKeySize;
+
+	assert(offset == nBufferSize);
+	return pBuffer;
+}
+
+stMsgGetRequest* ParseMsgGetRequestBuf( char* pBuf )
+{
+	int offset = 0;
+	int nKeySize = 0;
+	eMsgType type;
+	stMsgGetRequest* pMsgGet;
+
+	memcpy(&type, pBuf + offset, sizeof(eMsgType));
+	offset += sizeof(eMsgType);
+	assert(type == GET_REQUEST);
+
+	memcpy(&nKeySize, pBuf + offset, sizeof(int));
+	offset += sizeof(int);
+
+	pMsgGet = malloc(sizeof(stMsgGetRequest) + nKeySize);
+	pMsgGet->type = type;
+	pMsgGet->nKeySize = nKeySize;
+
+	memcpy(pMsgGet->buf + 1, pBuf + offset, pMsgGet->nKeySize);
+	offset += pMsgGet->nKeySize;
+
+	pMsgGet->pKey = pMsgGet->buf + 1;
+
+	return pMsgGet;
+}
+
+stMsgGetReply* CreateMsgGetReplySt( int nRet, data_t* pData )
+{
+	stMsgGetReply* pMsg = NULL;
+	if (pData != NULL)
+	{
+		pMsg= (stMsgGetReply*)malloc(sizeof(stMsgGetReply) + sizeof(data_t) + pData->key_len + pData->value_len);
+		pMsg->type = GET_REPLY;
+		pMsg->nRet = nRet;
+		//TODO
+		pMsg->pData = pMsg + sizeof(stMsgGetReply);
+
+		pMsg->pData->type = pData->type;
+		pMsg->pData->key_len = pData->key_len;
+		pMsg->pData->value_len = pData->value_len;
+		pMsg->pData->version = pData->version;
+		pMsg->pData->hash_value = pData->hash_value;
+
+		pMsg->pData->key = pMsg->pData->addr + 1;
+		pMsg->pData->value = pMsg->pData->addr + 1 + pMsg->pData->key_len;
+		memcpy(pMsg->pData->key,pData->key,pData->key_len);
+		memcpy(pMsg->pData->value,pData->value,pData->value_len);
+	} 
+	else
+	{
+		pMsg= (stMsgGetReply*)malloc(sizeof(stMsgGetReply));
+		pMsg->type = GET_REPLY;
+		pMsg->nRet = nRet;
+		pMsg->pData = NULL;
+	}
+	return pMsg;
+}
+
+void* CreateMsgGetReplyBuf( stMsgGetReply* pMsgPut )
+{
+
+}
+
+stMsgGetReply* ParseMsgGetReplyBuf( char* pBuf )
+{
+
+}
