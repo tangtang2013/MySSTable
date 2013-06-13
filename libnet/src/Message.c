@@ -160,7 +160,7 @@ void* CreateMsgGetRequestBuf( stMsgGetRequest* pMsgGet )
 	char* pBuffer;
 	int offset = 0;
 	int len = 0;
-	nBufferSize = 3 * sizeof(int) + pMsgGet->nKeySize;
+	nBufferSize = 2 * sizeof(int) + pMsgGet->nKeySize;
 
 	pBuffer = malloc(nBufferSize);
 	memset(pBuffer,0,nBufferSize);
@@ -209,13 +209,15 @@ stMsgGetRequest* ParseMsgGetRequestBuf( char* pBuf )
 stMsgGetReply* CreateMsgGetReplySt( int nRet, data_t* pData )
 {
 	stMsgGetReply* pMsg = NULL;
+	int length = 0;
 	if (pData != NULL)
 	{
 		pMsg= (stMsgGetReply*)malloc(sizeof(stMsgGetReply) + sizeof(data_t) + pData->key_len + pData->value_len);
 		pMsg->type = GET_REPLY;
 		pMsg->nRet = nRet;
 		//TODO
-		pMsg->pData = pMsg + sizeof(stMsgGetReply);
+		length = sizeof(stMsgGetReply);
+		pMsg->pData = (char*)pMsg + length;
 
 		pMsg->pData->type = pData->type;
 		pMsg->pData->key_len = pData->key_len;
@@ -238,12 +240,122 @@ stMsgGetReply* CreateMsgGetReplySt( int nRet, data_t* pData )
 	return pMsg;
 }
 
-void* CreateMsgGetReplyBuf( stMsgGetReply* pMsgPut )
+void* CreateMsgGetReplyBuf( stMsgGetReply* pMsgGet )
 {
+	int nBufferSize;
+	char* pBuffer;
+	int offset = 0;
+	int len = 0;
 
+	if (pMsgGet->pData == NULL)
+	{
+		nBufferSize = 2 * sizeof(int);
+		pBuffer = malloc(nBufferSize);
+
+		len = sizeof(pMsgGet->type);
+		memcpy(pBuffer + offset, &pMsgGet->type, len);
+		offset += len;
+
+		len = sizeof(int);
+		memcpy(pBuffer + offset, &pMsgGet->nRet, len);
+		offset += len;
+	} 
+	else
+	{
+		nBufferSize = 4 * sizeof(int) + 2 * sizeof(unsigned long long) + pMsgGet->pData->key_len + pMsgGet->pData->value_len;
+
+		pBuffer = malloc(nBufferSize);
+		memset(pBuffer,0,nBufferSize);
+
+		len = sizeof(pMsgGet->type);								//write msg type
+		memcpy(pBuffer + offset, &pMsgGet->type, len);
+		offset += len;
+
+		len = sizeof(int);											//write msg nRet
+		memcpy(pBuffer + offset, &pMsgGet->nRet, len);
+		offset += len;
+
+		len = sizeof(int);											//write data info : key length
+		memcpy(pBuffer + offset, &pMsgGet->pData->key_len, len);
+		offset += len;
+
+		len = sizeof(int);											//write data info : value length
+		memcpy(pBuffer + offset, &pMsgGet->pData->value_len, len);
+		offset += len;
+
+		len = sizeof(unsigned long long);							//write data info : version
+		memcpy(pBuffer + offset, &pMsgGet->pData->version, len);
+		offset += len;
+
+		len = sizeof(unsigned long long);							//write data info : expire time
+		memcpy(pBuffer + offset, &pMsgGet->pData->expireTime, len);
+		offset += len;
+
+		memcpy(pBuffer + offset, pMsgGet->pData->key, pMsgGet->pData->key_len);
+		offset += pMsgGet->pData->key_len;							//write data info : key buffer
+
+		memcpy(pBuffer + offset, pMsgGet->pData->value, pMsgGet->pData->value_len);
+		offset += pMsgGet->pData->value_len;						//write data info : value buffer
+
+		assert(offset == nBufferSize);
+	}
+
+	return pBuffer;
 }
 
 stMsgGetReply* ParseMsgGetReplyBuf( char* pBuf )
 {
+	int offset = 0;
+	int nRet = 0;
+	int nKeySize = 0;
+	int nValueSize = 0;
+	eMsgType type;
+	stMsgGetReply* pMsgGet;
 
+	memcpy(&type, pBuf + offset, sizeof(eMsgType));
+	offset += sizeof(eMsgType);
+	assert(type == GET_REPLY);
+
+	memcpy(&nRet, pBuf + offset, sizeof(int));
+	offset += sizeof(int);
+
+	if (nRet == 0)
+	{
+		memcpy(&nKeySize, pBuf + offset, sizeof(int));
+		offset += sizeof(int);
+
+		memcpy(&nValueSize, pBuf + offset, sizeof(int));
+		offset += sizeof(int);
+
+		pMsgGet = malloc(sizeof(stMsgGetReply) + sizeof(data_t) + nKeySize + nValueSize);
+		pMsgGet->type = type;
+		pMsgGet->nRet = nRet;
+
+		pMsgGet->pData = (char*)pMsgGet + sizeof(stMsgGetReply);
+		pMsgGet->pData->key_len = nKeySize;
+		pMsgGet->pData->value_len = nValueSize;
+
+		memcpy(&pMsgGet->pData->version, pBuf + offset, sizeof(unsigned long long));
+		offset += sizeof(unsigned long long);
+
+		memcpy(&pMsgGet->pData->expireTime, pBuf + offset, sizeof(unsigned long long));
+		offset += sizeof(unsigned long long);
+
+		memcpy(pMsgGet->pData->addr + 1, pBuf + offset, nKeySize);
+		offset += nKeySize;
+
+		memcpy(pMsgGet->pData->addr + 1 + nKeySize, pBuf + offset, nValueSize);
+		offset += nValueSize;
+
+		pMsgGet->pData->key = pMsgGet->pData->addr + 1;
+		pMsgGet->pData->value = pMsgGet->pData->addr + 1 + nKeySize;
+	} 
+	else
+	{
+		pMsgGet = malloc(sizeof(stMsgGetReply));
+		pMsgGet->type = type;
+		pMsgGet->nRet = nRet;
+	}
+
+	return pMsgGet;
 }

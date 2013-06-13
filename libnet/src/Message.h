@@ -64,7 +64,7 @@ stMsgGetRequest* ParseMsgGetRequestBuf(char* pBuf);
 
 //get...reply
 stMsgGetReply* CreateMsgGetReplySt(int nRet, data_t* pData);
-void* CreateMsgGetReplyBuf(stMsgGetReply* pMsgPut);
+void* CreateMsgGetReplyBuf(stMsgGetReply* pMsgGet);
 stMsgGetReply* ParseMsgGetReplyBuf(char* pBuf);
 
 #endif
