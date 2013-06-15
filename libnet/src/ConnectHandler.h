@@ -43,8 +43,10 @@ void DestroyHandler();
 //Worker
 void AddWork(uv_stream_t* client, char* pBuffer);
 stWork* GetWork();
+void DeleteWork(stWork* pWork);
 void DeleteWorkList();
 
 void ThreadFunc(void* pParam);
+void Handler(stWork* pWork);
 
 #endif

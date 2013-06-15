@@ -7,8 +7,8 @@ stServer* pServer;
 
 void SignalFunc(int nSignal)
 {
-	ln_ServerStop(pServer);
 	fprintf(stderr,"exit...\n");
+	ln_ServerStop(pServer);
 	ln_ServerDestroy(pServer);
 	exit(-1);
 }

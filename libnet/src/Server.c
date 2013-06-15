@@ -93,19 +93,10 @@ uv_buf_t alloc_buffer(uv_handle_t *handle, size_t suggested_size)
     return uv_buf_init((char*) malloc(suggested_size), suggested_size);
 }
 
-typedef struct {
-    uv_write_t req;
-    uv_buf_t buf;
-} write_req_t;
-
-void free_write_req(uv_write_t *req) {
-    write_req_t *wr = (write_req_t*) req;
-    free(wr->buf.base);
-    free(wr);
-}
-
 void on_file_write(uv_write_t *req, int status) {
-    free_write_req(req);
+	write_req_t *wr = (write_req_t*) req;
+	free(wr->buf.base);
+	free(wr);
 }
 
 void write_data(uv_stream_t *dest, size_t size, uv_buf_t buf, uv_write_cb callback) {
@@ -113,8 +104,8 @@ void write_data(uv_stream_t *dest, size_t size, uv_buf_t buf, uv_write_cb callba
     write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
     req->buf = uv_buf_init((char*) malloc(size), size);
     memcpy(req->buf.base, buf.base, size);
-	fprintf_s(stderr,"recv : %s\n",req->buf.base);
-    ret = uv_write((uv_write_t*) req, (uv_stream_t*)dest, &req->buf, 1, callback);
+
+    ret = uv_write((uv_write_t*)req, (uv_stream_t*)dest, &req->buf, 1, callback);
 	fprintf(stderr,"uv_write ret : %d\n",ret);
 }
 
@@ -132,7 +123,7 @@ void echo_read(uv_stream_t *stream, ssize_t nread, uv_buf_t buf)
 		{
 			//create worker insert into workList...
 			AddWork(stream, buf.base, nread);
-            write_data(stream, nread, buf, on_file_write);
+			//write_data(stream, nread, buf, on_file_write);
         }
     }
     if (buf.base)

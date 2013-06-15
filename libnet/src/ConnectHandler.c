@@ -112,13 +112,12 @@ void DeleteWorkList()
 	{
 		pWork = gpWorkList;
 		gnWorkNum--;
-		free(pWork);
+		DeleteWork(pWork);
 		pWork = NULL;
 		gpWorkList = gpWorkList->pNext;
 	}
 	uv_mutex_unlock(&gMutex);
 }
-
 
 void ThreadFunc(void* pParam)
 {
@@ -137,17 +136,31 @@ void ThreadFunc(void* pParam)
 		while(gpWorkList == NULL || gnWorkNum == 0)
 		{
 			uv_cond_wait(&gCond, &gMutex);
-			//uv_mutex_unlock(&gMutex);
-			//uv_mutex_lock(&gMutex);
 		}
 		pWork = GetWork();
 		uv_mutex_unlock(&gMutex);
 
 		//TODO(work handler)
 		fprintf(stderr,"-%s\n",pWork->pBuffer);
-		free(pWork);
+		Handler(pWork);
+		DeleteWork(pWork);
 		pWork = NULL;
-
-		uv_mutex_unlock(&gMutex);
 	}
+}
+
+void DeleteWork(stWork* pWork)
+{
+	uv_close((uv_handle_t*)pWork->client, NULL);
+	free(pWork);
+}
+
+void Handler(stWork* pWork)
+{
+	int ret;
+    write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
+	req->buf = uv_buf_init((char*) malloc(pWork->nBufferLen), pWork->nBufferLen);
+	memcpy(req->buf.base, pWork->pBuffer, pWork->nBufferLen);
+
+	ret = uv_write((uv_write_t*)req, (uv_stream_t*)pWork->client, &req->buf, 1, on_file_write);
+	//fprintf(stderr,"uv_write ret : %d\n",ret);
 }
