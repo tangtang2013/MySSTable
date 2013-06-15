@@ -14,6 +14,7 @@ stServer* ln_ServerCreate(char* strIP, int nPort)
 
 	memcpy(pServer->strIp, strIP, strlen(strIP));
 	pServer->nPort = nPort;
+
 	return pServer;
 }
 
@@ -24,6 +25,9 @@ int ln_ServerInit(stServer* pServer)
 	uv_tcp_init(loop, &pServer->server);
 	pServer->bind_addr = uv_ip4_addr(pServer->strIp, pServer->nPort);
 	ret = uv_tcp_bind(&pServer->server, pServer->bind_addr);
+
+	InitConnectHandler(3, pServer);
+
 	return ret;
 }
 
@@ -35,12 +39,17 @@ void ln_ServerStart(stServer* pServer)
 	{
 		fprintf(stderr, "Listen error %s\n",uv_err_name(uv_last_error(loop)));
 	}
+
+	StartHandler();
+
 	uv_run(loop, UV_RUN_DEFAULT);
 }
 
 void ln_ServerStop(stServer* pServer)
 {
 	uv_stop(loop);
+	StopHandler();
+
 }
 
 void ln_ServerDestroy(stServer* pServer)
@@ -50,6 +59,8 @@ void ln_ServerDestroy(stServer* pServer)
 		uv_loop_delete(loop);
 	}
 	free(pServer);
+
+	DestroyHandler();
 }
 
 void OnConnection(uv_stream_t *server, int status)
@@ -120,6 +131,7 @@ void echo_read(uv_stream_t *stream, ssize_t nread, uv_buf_t buf)
         if (nread > 0) 
 		{
 			//create worker insert into workList...
+			AddWork(stream, buf.base, nread);
             write_data(stream, nread, buf, on_file_write);
         }
     }
