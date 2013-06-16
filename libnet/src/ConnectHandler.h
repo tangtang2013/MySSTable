@@ -35,13 +35,13 @@ stServer* gServer;
 BOOL bIsRunning;
 
 //Handler
-void InitConnectHandler(int nThreadNum, stServer* server);
+void InitConnectHandler(int nThreadNum, stServer* server, MsgHandler_cb handler_cb);
 void StartHandler();
 void StopHandler();
 void DestroyHandler();
 
 //Worker
-void AddWork(uv_stream_t* client, char* pBuffer);
+void AddWork(uv_stream_t* client, char* pBuffer, int nBufferLength);
 stWork* GetWork();
 void DeleteWork(stWork* pWork);
 void DeleteWorkList();

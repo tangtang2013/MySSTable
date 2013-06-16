@@ -1,6 +1,7 @@
 #ifndef _LIBNET_MESSAGE_H_
 #define _LIBNET_MESSAGE_H_
 
+#include "Server.h"
 #include "common.h"
 
 //enum for massage type
@@ -66,5 +67,10 @@ stMsgGetRequest* ParseMsgGetRequestBuf(char* pBuf);
 stMsgGetReply* CreateMsgGetReplySt(int nRet, data_t* pData);
 void* CreateMsgGetReplyBuf(stMsgGetReply* pMsgGet);
 stMsgGetReply* ParseMsgGetReplyBuf(char* pBuf);
+
+//call back
+//typedef void (*MsgHandler_cb)(char* pInBuffer, int nInBufferSize, char* pOutBuffer, int nOutBufferSize);
+//MsgHandler_cb funcMsgHandler;
+write_req_t* MsgHandler(char* pInBuffer, int nInBufferSize);
 
 #endif

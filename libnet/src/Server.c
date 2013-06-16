@@ -18,7 +18,7 @@ stServer* ln_ServerCreate(char* strIP, int nPort)
 	return pServer;
 }
 
-int ln_ServerInit(stServer* pServer)
+int ln_ServerInit(stServer* pServer, MsgHandler_cb handler_cb)
 {
 	int ret;
 	loop = uv_default_loop();
@@ -26,7 +26,7 @@ int ln_ServerInit(stServer* pServer)
 	pServer->bind_addr = uv_ip4_addr(pServer->strIp, pServer->nPort);
 	ret = uv_tcp_bind(&pServer->server, pServer->bind_addr);
 
-	InitConnectHandler(3, pServer);
+	InitConnectHandler(3, pServer, handler_cb);
 
 	return ret;
 }
@@ -99,13 +99,14 @@ void on_file_write(uv_write_t *req, int status) {
 	free(wr);
 }
 
-void write_data(uv_stream_t *dest, size_t size, uv_buf_t buf, uv_write_cb callback) {
+void write_data(uv_stream_t *dest, size_t size, uv_buf_t buf, uv_write_cb callback)
+{
 	int ret;
-    write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
-    req->buf = uv_buf_init((char*) malloc(size), size);
-    memcpy(req->buf.base, buf.base, size);
+	write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
+	req->buf = uv_buf_init((char*) malloc(size), size);
+	memcpy(req->buf.base, buf.base, size);
 
-    ret = uv_write((uv_write_t*)req, (uv_stream_t*)dest, &req->buf, 1, callback);
+	ret = uv_write((uv_write_t*)req, (uv_stream_t*)dest, &req->buf, 1, callback);
 	fprintf(stderr,"uv_write ret : %d\n",ret);
 }
 

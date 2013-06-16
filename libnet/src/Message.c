@@ -359,3 +359,14 @@ stMsgGetReply* ParseMsgGetReplyBuf( char* pBuf )
 
 	return pMsgGet;
 }
+
+write_req_t* MsgHandler(char* pInBuffer, int nInBufferSize)
+{
+	int nOutBufferSize = 11;
+	write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
+
+	req->buf = uv_buf_init((char*) malloc(nOutBufferSize), nOutBufferSize);
+	memcpy(req->buf.base, "hello kitty", nOutBufferSize);
+	
+	return req;
+}

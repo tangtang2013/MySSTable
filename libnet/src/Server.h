@@ -13,16 +13,20 @@ typedef struct ln_Server
 	int	nPort;
 }stServer;
 
-stServer* ln_ServerCreate(char* strIP, int nPort);
-int ln_ServerInit(stServer* pServer);
-void ln_ServerStart(stServer* pServer);
-void ln_ServerStop(stServer* pServer);
-void ln_ServerDestroy(stServer* pServer);
-
 typedef struct {
     uv_write_t req;
     uv_buf_t buf;
 } write_req_t;
+
+//call back
+typedef write_req_t* (*MsgHandler_cb)(char* pInBuffer, int nInBufferSize);
+MsgHandler_cb funcMsgHandler;
+
+stServer* ln_ServerCreate(char* strIP, int nPort);
+int ln_ServerInit(stServer* pServer, MsgHandler_cb handler_cb);
+void ln_ServerStart(stServer* pServer);
+void ln_ServerStop(stServer* pServer);
+void ln_ServerDestroy(stServer* pServer);
 
 void on_file_write(uv_write_t *req, int status);
 void write_data(uv_stream_t *dest, size_t size, uv_buf_t buf, uv_write_cb callback);

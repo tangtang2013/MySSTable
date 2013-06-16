@@ -1,10 +1,16 @@
 #include <stdio.h>
 #include "ConnectHandler.h"
 
-void InitConnectHandler(int nThreadNum, stServer* server)
+write_req_t* MsgHandler_Default(char* pInBuffer, int nInBufferSize);
+
+void InitConnectHandler(int nThreadNum, stServer* server, MsgHandler_cb handler_cb)
 {
 	gnThreadNum = nThreadNum;
 	gServer = server;
+	if(handler_cb != NULL)
+		funcMsgHandler = handler_cb;
+	else
+		funcMsgHandler = MsgHandler_Default;
 
 	gpHandlers = (stHandler*)malloc(nThreadNum * sizeof(stHandler));
 	memset(gpHandlers, 0, nThreadNum * sizeof(stHandler));
@@ -152,15 +158,30 @@ void DeleteWork(stWork* pWork)
 {
 	uv_close((uv_handle_t*)pWork->client, NULL);
 	free(pWork);
+	fprintf(stderr,"DeleteWork\n");
 }
 
 void Handler(stWork* pWork)
 {
 	int ret;
-    write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
-	req->buf = uv_buf_init((char*) malloc(pWork->nBufferLen), pWork->nBufferLen);
-	memcpy(req->buf.base, pWork->pBuffer, pWork->nBufferLen);
+	int nBufferSize = 0;
+	char* pBuffer = NULL;
+    write_req_t *req;
+
+	req = (*funcMsgHandler)(pWork->pBuffer, pWork->nBufferLen);
 
 	ret = uv_write((uv_write_t*)req, (uv_stream_t*)pWork->client, &req->buf, 1, on_file_write);
+	//on_file_write(req,1);
 	//fprintf(stderr,"uv_write ret : %d\n",ret);
+}
+
+write_req_t* MsgHandler_Default(char* pInBuffer, int nInBufferSize)
+{
+	int nOutBufferSize = 12;
+	write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
+
+	req->buf = uv_buf_init((char*) malloc(nOutBufferSize), nOutBufferSize);
+	memcpy(req->buf.base, "hello world", nOutBufferSize);
+	
+	return req;
 }
