@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "Message.h"
 
 void TestMsgPutReply()

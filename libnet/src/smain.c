@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <uv.h>
 #include "Server.h"
-#include "Message.h"
+#include "TMessageHandler.h"
 
 stServer* pServer;
 
@@ -20,6 +20,6 @@ int main(int argc, char** argv)
 	signal(SIGTERM,SignalFunc);
 
 	pServer = ln_ServerCreate("0.0.0.0",7000);
-	ln_ServerInit(pServer,MsgHandler);
+	ln_ServerInit(pServer,MsgHandler_callback);
 	ln_ServerStart(pServer);
 }

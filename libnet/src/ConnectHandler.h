@@ -1,8 +1,8 @@
 #ifndef _LIBNET_CONNECTHANDLER_H_
 #define _LIBNET_CONNECTHANDLER_H_
 
-#include <uv.h>
-#include "Server.h"
+#include <common.h>
+//#include "Server.h"
 
 //Work mutex lock
 uv_mutex_t gMutex;
@@ -33,6 +33,8 @@ int gnWorkNum;
 
 stServer* gServer;
 BOOL bIsRunning;
+
+MsgHandler_cb funcMsgHandler;
 
 //Handler
 void InitConnectHandler(int nThreadNum, stServer* server, MsgHandler_cb handler_cb);

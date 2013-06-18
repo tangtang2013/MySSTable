@@ -26,7 +26,7 @@ int ln_ServerInit(stServer* pServer, MsgHandler_cb handler_cb)
 	pServer->bind_addr = uv_ip4_addr(pServer->strIp, pServer->nPort);
 	ret = uv_tcp_bind(&pServer->server, pServer->bind_addr);
 
-	InitConnectHandler(3, pServer, handler_cb);
+	InitConnectHandler(1, pServer, handler_cb);
 
 	return ret;
 }
@@ -85,8 +85,6 @@ void OnConnection(uv_stream_t *server, int status)
 		uv_close((uv_handle_t*)client, NULL);
 	}
 }
-
-
 
 uv_buf_t alloc_buffer(uv_handle_t *handle, size_t suggested_size)
 {

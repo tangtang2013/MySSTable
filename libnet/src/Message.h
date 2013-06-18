@@ -1,20 +1,7 @@
 #ifndef _LIBNET_MESSAGE_H_
 #define _LIBNET_MESSAGE_H_
 
-#include "Server.h"
-#include "common.h"
-
-//enum for massage type
-typedef enum msg_type
-{
-	CONNECTING,
-	CLOSECONNECT,
-	PUT_REQUEST,
-	PUT_REPLY,
-	GET_REQUEST,
-	GET_REPLY,
-	DEL
-}eMsgType;
+#include <common.h>
 
 typedef struct msg_put_request
 {
@@ -35,12 +22,12 @@ typedef struct msg_put_reply
 //put...request
 stMsgPutRequest* CreateMsgPutRequestSt(char* pKey, int nKeySize, char* pValue, int nValueSize);
 void* CreateMsgPutRequestBuf(stMsgPutRequest* pMsgPut);
-stMsgPutRequest* ParseMsgPutRequestBuf(char* pBuf);
+stMsgPutRequest* ParseMsgPutRequestBuf(uv_buf_t* uvBuf);
 
 //put...reply
 stMsgPutReply* CreateMsgPutReplySt(int nRet);
 void* CreateMsgPutReplyBuf(stMsgPutReply* pMsgPut);
-stMsgPutReply* ParseMsgPutReplyBuf(char* pBuf);
+stMsgPutReply* ParseMsgPutReplyBuf(uv_buf_t* uvBuf);
 
 typedef struct msg_get_request
 {
@@ -61,16 +48,16 @@ typedef struct msg_get_reply
 //get...request
 stMsgGetRequest* CreateMsgGetRequestSt(char* pKey, int nKeySize);
 void* CreateMsgGetRequestBuf(stMsgGetRequest* pMsgGet);
-stMsgGetRequest* ParseMsgGetRequestBuf(char* pBuf);
+stMsgGetRequest* ParseMsgGetRequestBuf(uv_buf_t* uvBuf);
 
 //get...reply
 stMsgGetReply* CreateMsgGetReplySt(int nRet, data_t* pData);
 void* CreateMsgGetReplyBuf(stMsgGetReply* pMsgGet);
-stMsgGetReply* ParseMsgGetReplyBuf(char* pBuf);
+stMsgGetReply* ParseMsgGetReplyBuf(uv_buf_t* uvBuf);
 
 //call back
 //typedef void (*MsgHandler_cb)(char* pInBuffer, int nInBufferSize, char* pOutBuffer, int nOutBufferSize);
 //MsgHandler_cb funcMsgHandler;
-write_req_t* MsgHandler(char* pInBuffer, int nInBufferSize);
+void* MsgHandler(char* pInBuffer, int nInBufferSize);
 
 #endif

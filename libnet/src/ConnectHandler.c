@@ -37,21 +37,21 @@ void StartHandler()
 
 void StopHandler()
 {
-	int i;
-	
 	uv_mutex_lock(&gMutex);
 	bIsRunning = FALSE;
-	uv_mutex_unlock(&gMutex);
 	uv_cond_broadcast(&gCond);
-
-	for(i=0; i<gnThreadNum; i++)
-	{
-		uv_thread_join(&gpHandlers[i].thread);
-	}
+	uv_mutex_unlock(&gMutex);
+	uv_cond_signal(&gCond);
 }
 
 void DestroyHandler()
 {
+	int i;
+	uv_cond_broadcast(&gCond);
+	for(i=0; i<gnThreadNum; i++)
+	{
+		uv_thread_join(&gpHandlers[i].thread);
+	}
 	//TODO
 	DeleteWorkList();
 	uv_mutex_destroy(&gMutex);
@@ -161,6 +161,12 @@ void DeleteWork(stWork* pWork)
 	fprintf(stderr,"DeleteWork\n");
 }
 
+void write_cb(uv_write_t *req, int status) {
+	write_req_t *wr = (write_req_t*) req;
+	free(wr->buf.base);
+	free(wr);
+}
+
 void Handler(stWork* pWork)
 {
 	int ret;
@@ -170,7 +176,7 @@ void Handler(stWork* pWork)
 
 	req = (*funcMsgHandler)(pWork->pBuffer, pWork->nBufferLen);
 
-	ret = uv_write((uv_write_t*)req, (uv_stream_t*)pWork->client, &req->buf, 1, on_file_write);
+	ret = uv_write((uv_write_t*)req, (uv_stream_t*)pWork->client, &req->buf, 1, write_cb);
 	//on_file_write(req,1);
 	//fprintf(stderr,"uv_write ret : %d\n",ret);
 }
