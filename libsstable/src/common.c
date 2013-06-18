@@ -1,7 +1,7 @@
-#include "common.h"
-#include "PMurHash.h"
 #include <stdio.h>
 #include <assert.h>
+#include "common.h"
+#include "PMurHash.h"
 
 void* create_data(const char* key, int key_len, const char* value, int value_len, char type)
 {
