@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <uv.h>
 #include "Server.h"
-#include "TMessageHandler.h"
+#include "MessageHandler.h"
 
 stServer* pServer;
 
