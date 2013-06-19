@@ -32,6 +32,8 @@ typedef struct ln_Server
 	uv_tcp_t server;
 	struct sockaddr_in bind_addr;
 
+	void* pConnhandler;	//(runtime cast...)
+
 	char strIp[32];
 	int	nPort;
 }stServer;

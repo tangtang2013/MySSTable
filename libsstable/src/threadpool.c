@@ -7,8 +7,10 @@ threadPool_t* threadPool_new(int threadNum)
 	pool->threadNum = threadNum;
 
 	//create Mutex/Semaphore Object
-	pool->mutex = CreateMutex(NULL,FALSE,NULL);
-	pool->semaphore = CreateSemaphore(NULL,0,2,NULL);
+	//pool->mutex = CreateMutex(NULL,FALSE,NULL);
+	//pool->semaphore = CreateSemaphore(NULL,0,2,NULL);
+	uv_mutex_init(&pool->mutex);
+	uv_cond_init(&pool->cond);
 
 	return pool;
 }
@@ -20,7 +22,8 @@ void threadPool_init(threadPool_t* pool)
 	
 	for (i=0; i<pool->threadNum; i++)
 	{
-		pool->threadIDs[i] = CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)func,pool,0,NULL);
+		//pool->threadIDs[i] = CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)func,pool,0,NULL);
+		uv_thread_create(&pool->threadIDs[i], func, pool);
 	}
 }
 
@@ -37,9 +40,11 @@ void threadPool_destroy( threadPool_t* pool )
 		NULL;	//not good, will cost lots of CPU
 	}
 
-	WaitForSingleObject(pool->mutex,INFINITE);	//change the threadPool Shutdown flag with TURE
+	uv_mutex_lock(&pool->mutex);	//change the threadPool Shutdown flag with TURE
 	pool->doShutDown = TRUE;
-	ReleaseMutex(pool->mutex);
+	uv_mutex_unlock(&pool->mutex);
+
+	uv_cond_broadcast(&pool->cond);
 
 	for (i=0; i<pool->threadNum; i++)
 	{
@@ -49,11 +54,11 @@ void threadPool_destroy( threadPool_t* pool )
 	
 	for (i=0; i<pool->threadNum; i++)			//waiting for All thread complete run
 	{
-		WaitForSingleObject(pool->threadIDs[i],INFINITE);
+		uv_thread_join(&pool->threadIDs[i]);
 	}
 	
-	CloseHandle(pool->mutex);					//close Object Handle and free
-	CloseHandle(pool->semaphore);
+	uv_mutex_destroy(&pool->mutex);					//close Object Handle and free
+	uv_cond_destroy(&pool->cond);
 	free(pool);
 	pool = NULL;
 }
@@ -68,7 +73,7 @@ void threadPool_addJob(threadPool_t* pool, void *(*func)(void*), void* arg )
 	newJob->arg = arg;
 	newJob->next = NULL;
 
-	WaitForSingleObject(pool->mutex,INFINITE);		//add job to queue
+	uv_mutex_lock(&pool->mutex);					//add job to queue
 	if (pool->jobQueue == NULL || pool->jobNum == 0)
 	{
 		pool->jobQueue = newJob;
@@ -83,8 +88,9 @@ void threadPool_addJob(threadPool_t* pool, void *(*func)(void*), void* arg )
 		head->next = newJob;
 	}
 	pool->jobNum++;
-	ReleaseMutex(pool->mutex);
+	uv_mutex_unlock(&pool->mutex);
 	//Signal...
+	uv_cond_signal(&pool->cond);
 }
 
 void * func( void *arg )
@@ -93,29 +99,29 @@ void * func( void *arg )
 	threadPool_t* pool = (threadPool_t*)arg;
 	while (1)
 	{
-		WaitForSingleObject(pool->mutex,INFINITE);
+		uv_mutex_lock(&pool->mutex);
 		if (pool->doShutDown)								//the Pool will exit,so break while
 		{
-			ReleaseMutex(pool->mutex);
+			uv_mutex_unlock(&pool->mutex);
 			ExitThread(999);
 			break;
 		}
 		while (pool->jobNum == 0 && !pool->doShutDown)		//the work queue is empty, so wait for queue
 		{
-			ReleaseMutex(pool->mutex);
-//			WaitForSingleObject(pool->semaphore,INFINITE);
-			WaitForSingleObject(pool->mutex,INFINITE);
+//			uv_mutex_unlock(&pool->mutex);
+			uv_cond_wait(&pool->cond, &pool->mutex);
+//			uv_mutex_lock(&pool->mutex);
 		}
 		if (pool->doShutDown)
 		{
-			ReleaseMutex(pool->mutex);
+			uv_mutex_unlock(&pool->mutex);
 			ExitThread(999);
 			break;
 		}
 		job = pool->jobQueue;								//get job form queue
 		pool->jobQueue = pool->jobQueue->next;
 		pool->jobNum--;
-		ReleaseMutex(pool->mutex);
+		uv_mutex_unlock(&pool->mutex);
 
 		job->func(job->arg);								//execute the job
 //		free(job->arg);										//free memory of job

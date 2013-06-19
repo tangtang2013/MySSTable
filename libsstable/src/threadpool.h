@@ -7,7 +7,8 @@
 #ifndef __SSTABLE_THREADPOOL_H_
 #define __SSTABLE_THREADPOOL_H_
 
-#include <Windows.h>
+#include <stdio.h>
+#include "common.h"
 
 typedef struct jobNode
 {
@@ -22,9 +23,9 @@ typedef struct  threadPool
 	int jobNum;			//the number of work job
 	jobNode_t* jobQueue;//the queue of work job
 
-	HANDLE semaphore;	//semaphore(not use...)
-	HANDLE mutex;		//like a mutex
-	HANDLE *threadIDs;	//thread ID array
+	uv_cond_t cond;	//semaphore(not use...)
+	uv_mutex_t mutex;		//like a mutex
+	uv_thread_t *threadIDs;	//thread ID array
 
 	int doShutDown;		//flag of shutdown 0/1
 }threadPool_t;
