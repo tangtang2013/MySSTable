@@ -671,6 +671,7 @@ struct uv_tcp_s {
   UV_HANDLE_FIELDS
   UV_STREAM_FIELDS
   UV_TCP_PRIVATE_FIELDS
+  void* handler;
 };
 
 UV_EXTERN int uv_tcp_init(uv_loop_t*, uv_tcp_t* handle);
