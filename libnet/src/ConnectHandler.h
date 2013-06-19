@@ -4,11 +4,6 @@
 #include <common.h>
 //#include "Server.h"
 
-//Work mutex lock
-uv_mutex_t gMutex;
-//Work Condition
-uv_cond_t gCond;
-
 typedef struct ln_Work
 {
 	uv_stream_t* client;
@@ -25,30 +20,39 @@ typedef struct ln_Handler
 	void (*func)(void*);
 }stHandler;
 
-int gnThreadNum;
-stHandler* gpHandlers;
+//---
+typedef struct ln_ConnectHandler
+{
+	int nThreadNum;
+	stHandler* pHandlers;
 
-stWork* gpWorkList;
-int gnWorkNum;
+	stWork* pWorkList;
+	int nWorkNum;
 
-stServer* gServer;
-BOOL bIsRunning;
+	stServer* pServer;
+	BOOL bIsRunning;
 
-MsgHandler_cb funcMsgHandler;
+	MsgHandler_cb funcMsgHandler;
+
+	//Work mutex lock
+	uv_mutex_t uvMutex;
+	//Work Condition
+	uv_cond_t uvCond;
+}stConnectHandler;
 
 //Handler
-void InitConnectHandler(int nThreadNum, stServer* server, MsgHandler_cb handler_cb);
-void StartHandler();
-void StopHandler();
-void DestroyHandler();
+stConnectHandler* InitConnectHandler(int nThreadNum, stServer* server, MsgHandler_cb handler_cb);
+void StartHandler(stConnectHandler* pConnectHandler);
+void StopHandler(stConnectHandler* pConnectHandler);
+void DestroyHandler(stConnectHandler* pConnectHandler);
 
 //Worker
-void AddWork(uv_stream_t* client, char* pBuffer, int nBufferLength);
-stWork* GetWork();
+void AddWork(stConnectHandler* pConnectHandler, uv_stream_t* client, char* pBuffer, int nBufferLength);
+stWork* GetWork(stConnectHandler* pConnectHandler);
 void DeleteWork(stWork* pWork);
-void DeleteWorkList();
+void DeleteWorkList(stConnectHandler* pConnectHandler);
 
 void ThreadFunc(void* pParam);
-void Handler(stWork* pWork);
+void Handler(stConnectHandler* pConnectHandler, stWork* pWork);
 
 #endif

@@ -26,7 +26,7 @@ int ln_ServerInit(stServer* pServer, MsgHandler_cb handler_cb)
 	pServer->bind_addr = uv_ip4_addr(pServer->strIp, pServer->nPort);
 	ret = uv_tcp_bind(&pServer->server, pServer->bind_addr);
 
-	InitConnectHandler(1, pServer, handler_cb);
+	pServer->pConnhandler = InitConnectHandler(1, pServer, handler_cb);
 
 	return ret;
 }
@@ -34,13 +34,14 @@ int ln_ServerInit(stServer* pServer, MsgHandler_cb handler_cb)
 void ln_ServerStart(stServer* pServer)
 {
 	int ret;
+	pServer->server.handler = pServer->pConnhandler;
 	ret = uv_listen((uv_stream_t*)&pServer->server,128,OnConnection);
 	if(ret)
 	{
 		fprintf(stderr, "Listen error %s\n",uv_err_name(uv_last_error(loop)));
 	}
 
-	StartHandler();
+	StartHandler(pServer->pConnhandler);
 
 	uv_run(loop, UV_RUN_DEFAULT);
 }
@@ -48,7 +49,7 @@ void ln_ServerStart(stServer* pServer)
 void ln_ServerStop(stServer* pServer)
 {
 	uv_stop(loop);
-	StopHandler();
+	StopHandler(pServer->pConnhandler);
 
 }
 
@@ -58,14 +59,16 @@ void ln_ServerDestroy(stServer* pServer)
 	{
 		uv_loop_delete(loop);
 	}
-	free(pServer);
+	
+	DestroyHandler(pServer->pConnhandler);
 
-	DestroyHandler();
+	free(pServer);
 }
 
 void OnConnection(uv_stream_t *server, int status)
 {
 	uv_tcp_t* client;
+	uv_tcp_t* pServer = (uv_tcp_t*)server;
 	if(status == -1)
 	{
 		//error
@@ -74,6 +77,7 @@ void OnConnection(uv_stream_t *server, int status)
 	}
 
 	client = (uv_tcp_t*)malloc(sizeof(uv_tcp_t));
+	client->handler = pServer->handler;
 	uv_tcp_init(loop, client);
 	if(0 == uv_accept(server, (uv_stream_t*)client))
 	{
@@ -110,6 +114,8 @@ void write_data(uv_stream_t *dest, size_t size, uv_buf_t buf, uv_write_cb callba
 
 void echo_read(uv_stream_t *stream, ssize_t nread, uv_buf_t buf)
 {
+	uv_tcp_t* pServer = (uv_tcp_t*)stream;
+	stConnectHandler* pConnectHandler = pServer->handler;
     if (nread == -1) {
         if (uv_last_error(loop).code == UV_EOF)
 		{
@@ -121,7 +127,7 @@ void echo_read(uv_stream_t *stream, ssize_t nread, uv_buf_t buf)
         if (nread > 0) 
 		{
 			//create worker insert into workList...
-			AddWork(stream, buf.base, nread);
+			AddWork(pConnectHandler,stream, buf.base, nread);
 			//write_data(stream, nread, buf, on_file_write);
         }
     }

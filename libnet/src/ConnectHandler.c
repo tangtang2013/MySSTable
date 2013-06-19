@@ -3,62 +3,67 @@
 
 write_req_t* MsgHandler_Default(char* pInBuffer, int nInBufferSize);
 
-void InitConnectHandler(int nThreadNum, stServer* server, MsgHandler_cb handler_cb)
+stConnectHandler* InitConnectHandler(int nThreadNum, stServer* server, MsgHandler_cb handler_cb)
 {
-	gnThreadNum = nThreadNum;
-	gServer = server;
+	stConnectHandler* pConnectHandler = (stConnectHandler*)malloc(sizeof(stConnectHandler));
+	
+	pConnectHandler->nThreadNum = nThreadNum;
+	pConnectHandler->pServer = server;
+
 	if(handler_cb != NULL)
-		funcMsgHandler = handler_cb;
+		pConnectHandler->funcMsgHandler = handler_cb;
 	else
-		funcMsgHandler = MsgHandler_Default;
+		pConnectHandler->funcMsgHandler = MsgHandler_Default;
 
-	gpHandlers = (stHandler*)malloc(nThreadNum * sizeof(stHandler));
-	memset(gpHandlers, 0, nThreadNum * sizeof(stHandler));
+	pConnectHandler->pHandlers = (stHandler*)malloc(nThreadNum * sizeof(stHandler));
+	memset(pConnectHandler->pHandlers, 0, nThreadNum * sizeof(stHandler));
 
-	gpWorkList = NULL;
-	gnWorkNum = 0;
-	uv_mutex_init(&gMutex);
-	uv_cond_init(&gCond);
+	pConnectHandler->pWorkList = NULL;
+	pConnectHandler->nWorkNum = 0;
+
+	uv_mutex_init(&pConnectHandler->uvMutex);
+	uv_cond_init(&pConnectHandler->uvCond);
+
+	return pConnectHandler;
 }
 
-void StartHandler()
+void StartHandler(stConnectHandler* pConnectHandler)
 {
 	int i;
 
-	uv_mutex_lock(&gMutex);
-	bIsRunning = TRUE;
-	uv_mutex_unlock(&gMutex);
+	uv_mutex_lock(&pConnectHandler->uvMutex);
+	pConnectHandler->bIsRunning = TRUE;
+	uv_mutex_unlock(&pConnectHandler->uvMutex);
 
-	for(i=0; i<gnThreadNum; i++)
+	for(i=0; i<pConnectHandler->nThreadNum; i++)
 	{
-		uv_thread_create(&gpHandlers[i].thread,ThreadFunc,gpWorkList);
+		uv_thread_create(&pConnectHandler->pHandlers[i].thread,ThreadFunc,pConnectHandler);
 	}
 }
 
-void StopHandler()
+void StopHandler(stConnectHandler* pConnectHandler)
 {
-	uv_mutex_lock(&gMutex);
-	bIsRunning = FALSE;
-	uv_cond_broadcast(&gCond);
-	uv_mutex_unlock(&gMutex);
-	uv_cond_signal(&gCond);
+	uv_mutex_lock(&pConnectHandler->uvMutex);
+	pConnectHandler->bIsRunning = FALSE;
+	uv_mutex_unlock(&pConnectHandler->uvMutex);
 }
 
-void DestroyHandler()
+void DestroyHandler(stConnectHandler* pConnectHandler)
 {
 	int i;
-	uv_cond_broadcast(&gCond);
-	for(i=0; i<gnThreadNum; i++)
+	uv_cond_broadcast(&pConnectHandler->uvCond);
+
+	for(i=0; i<pConnectHandler->nThreadNum; i++)
 	{
-		uv_thread_join(&gpHandlers[i].thread);
+		uv_thread_join(&pConnectHandler->pHandlers[i].thread);
 	}
 	//TODO
-	DeleteWorkList();
-	uv_mutex_destroy(&gMutex);
-	uv_cond_destroy(&gCond);
+	DeleteWorkList(pConnectHandler);
+	uv_mutex_destroy(&pConnectHandler->uvMutex);
+	uv_cond_destroy(&pConnectHandler->uvCond);
 }
 
-void AddWork(uv_stream_t* client, char* pBuffer, int nBufferLength)
+void AddWork(stConnectHandler* pConnectHandler, uv_stream_t* client, char* pBuffer, int nBufferLength)
 {
 	stWork* pWork;
 	stWork* pHead;
@@ -71,84 +76,92 @@ void AddWork(uv_stream_t* client, char* pBuffer, int nBufferLength)
 	pWork->pNext = NULL;
 	memcpy(pWork->addr + 1, pBuffer, nBufferLength);
 
-	uv_mutex_lock(&gMutex);
-	if(gpWorkList != NULL || gnWorkNum > 0)
+	uv_mutex_lock(&pConnectHandler->uvMutex);
+	if(pConnectHandler->pWorkList != NULL || pConnectHandler->nWorkNum > 0)
 	{
-		pHead = gpWorkList;
+		pHead = pConnectHandler->pWorkList;
 		while(pHead->pNext != NULL)
 		{
 			pHead = pHead->pNext;
 		}
 		pHead->pNext = pWork;
-		pWork = gpWorkList;
-		gnWorkNum++;
-		gpWorkList = gpWorkList->pNext;
+		//pWork = gpWorkList;
+		pConnectHandler->nWorkNum++;
+		//gpWorkList = gpWorkList->pNext;
 	}
 	else
 	{
-		gpWorkList = pWork;
-		gnWorkNum++;
+		pConnectHandler->pWorkList = pWork;
+		pConnectHandler->nWorkNum++;
 	}
-	uv_mutex_unlock(&gMutex);
-	uv_cond_signal(&gCond);
+	uv_mutex_unlock(&pConnectHandler->uvMutex);
+	uv_cond_signal(&pConnectHandler->uvCond);
 }
 
-stWork* GetWork()
+stWork* GetWork(stConnectHandler* pConnectHandler)
 {
 	stWork* pWork = NULL;
 	//uv_mutex_lock(&gMutex);
 	//TODO
-	if(gpWorkList != NULL || gnWorkNum > 0)
+	if(pConnectHandler->pWorkList != NULL || pConnectHandler->nWorkNum > 0)
 	{
-		pWork = gpWorkList;
-		gnWorkNum--;
-		gpWorkList = gpWorkList->pNext;
+		pWork = pConnectHandler->pWorkList;
+		pConnectHandler->nWorkNum--;
+		pConnectHandler->pWorkList = pConnectHandler->pWorkList->pNext;
 	}
 	//uv_mutex_unlock(&gMutex);
 
 	return pWork;
 }
 
-void DeleteWorkList()
+void DeleteWorkList(stConnectHandler* pConnectHandler)
 {
 	stWork* pWork = NULL;
-	uv_mutex_lock(&gMutex);
+	uv_mutex_lock(&pConnectHandler->uvMutex);
 	//TODO
-	while(gpWorkList != NULL || gnWorkNum > 0)
+	while(pConnectHandler->pWorkList != NULL || pConnectHandler->nWorkNum > 0)
 	{
-		pWork = gpWorkList;
-		gnWorkNum--;
+		pWork = pConnectHandler->pWorkList;
+		pConnectHandler->nWorkNum--;
 		DeleteWork(pWork);
 		pWork = NULL;
-		gpWorkList = gpWorkList->pNext;
+		pConnectHandler->pWorkList = pConnectHandler->pWorkList->pNext;
 	}
-	uv_mutex_unlock(&gMutex);
+	uv_mutex_unlock(&pConnectHandler->uvMutex);
 }
 
 void ThreadFunc(void* pParam)
 {
 	stWork* pWork;
+	stConnectHandler* pConnectHandler = (stConnectHandler*)pParam;
 
-	while(bIsRunning)
+	while(pConnectHandler->bIsRunning)
 	{
 		//TODO
-		uv_mutex_lock(&gMutex);
+		uv_mutex_lock(&pConnectHandler->uvMutex);
 		
-		if(!bIsRunning)
+		if(!pConnectHandler->bIsRunning)
 		{
-			uv_mutex_unlock(&gMutex);
+			uv_mutex_unlock(&pConnectHandler->uvMutex);
+			ExitThread(999);
 			return;//(pthread_exit())
 		}
-		while(gpWorkList == NULL || gnWorkNum == 0)
+		while(pConnectHandler->bIsRunning && pConnectHandler->nWorkNum == 0)
 		{
-			uv_cond_wait(&gCond, &gMutex);
+			uv_cond_wait(&pConnectHandler->uvCond, &pConnectHandler->uvMutex);
 		}
-		pWork = GetWork();
-		uv_mutex_unlock(&gMutex);
+		if(!pConnectHandler->bIsRunning)
+		{
+			uv_mutex_unlock(&pConnectHandler->uvMutex);
+			ExitThread(999);
+			return;//(pthread_exit())
+		}
+		pWork = GetWork(pConnectHandler);
+		uv_mutex_unlock(&pConnectHandler->uvMutex);
 
 		//TODO(work handler)
 		fprintf(stderr,"-%s\n",pWork->pBuffer);
-		Handler(pWork);
+		Handler(pConnectHandler, pWork);
 		DeleteWork(pWork);
 		pWork = NULL;
 	}
@@ -167,14 +180,14 @@ void write_cb(uv_write_t *req, int status) {
 	free(wr);
 }
 
-void Handler(stWork* pWork)
+void Handler(stConnectHandler* pConnectHandler, stWork* pWork)
 {
 	int ret;
 	int nBufferSize = 0;
 	char* pBuffer = NULL;
     write_req_t *req;
 
-	req = (*funcMsgHandler)(pWork->pBuffer, pWork->nBufferLen);
+	req = (*pConnectHandler->funcMsgHandler)(pWork->pBuffer, pWork->nBufferLen);
 
 	ret = uv_write((uv_write_t*)req, (uv_stream_t*)pWork->client, &req->buf, 1, write_cb);
 	//on_file_write(req,1);

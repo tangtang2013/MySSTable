@@ -109,6 +109,7 @@ void* CreateMsgPutReplyBuf( stMsgPutReply* pMsgPut )
 	int len = 0;
 	nBufferSize = 2 * sizeof(int);
 
+	uvBuf->len = nBufferSize;
 	uvBuf->base = malloc(nBufferSize);
 	memset(uvBuf->base,0,uvBuf->len);
 
@@ -260,7 +261,7 @@ void* CreateMsgGetReplyBuf( stMsgGetReply* pMsgGet )
 	if (pMsgGet->pData == NULL)
 	{
 		uvBuf->len = 2 * sizeof(int);
-		uvBuf->base = malloc(nBufferSize);
+		uvBuf->base = malloc(uvBuf->len);
 
 		len = sizeof(pMsgGet->type);
 		memcpy(uvBuf->base + offset, &pMsgGet->type, len);
