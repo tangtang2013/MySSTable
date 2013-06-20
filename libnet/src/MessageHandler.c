@@ -33,7 +33,7 @@ void* MsgHandler_callback(char* pInBuffer, int nInBufferSize)
 		uvTmp = PutRequestHandler(uvBuf);
 		break;
 	case GET_REQUEST:
-		uvTmp = ParseMsgGetRequestBuf(uvBuf);
+		uvTmp = GetRequestHandler(uvBuf);
 		break;
 	default:
 		fprintf(stderr,"error type\n");
@@ -87,11 +87,12 @@ void* GetRequestHandler(uv_buf_t* uvBuf)
 
 	assert(GET_REQUEST == pRequest->type);
 
-	pData = sstmanager_get(pManager, pRequest->pKey);
+	pData = sstmanager_get(pManager, pRequest->pKey, pRequest->nKeySize);
 
 	pReply = CreateMsgGetReplySt(0, pData);			//test ...
 	pRetBuffer = CreateMsgGetReplyBuf(pReply);
 
+	free(pData);
 	free(pReply);
 	free(pRequest);
 

@@ -169,7 +169,7 @@ void ThreadFunc(void* pParam)
 
 void DeleteWork(stWork* pWork)
 {
-	uv_close((uv_handle_t*)pWork->client, NULL);
+	//uv_close((uv_handle_t*)pWork->client, NULL);
 	free(pWork);
 	fprintf(stderr,"DeleteWork\n");
 }
