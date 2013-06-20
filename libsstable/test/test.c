@@ -69,7 +69,7 @@ DWORD WINAPI thread_get0(void* arg)
 	for(i=0; i<200000; i++)
 	{
 		sprintf(key,"key%06d",i);
-		data = sstmanager_get((sstmanager_t*)arg,key);
+		data = sstmanager_get((sstmanager_t*)arg,key,strlen(key));
 		if (data && strcmp(key,data->key) == 0)
 		{
 			count++;
@@ -86,7 +86,7 @@ DWORD WINAPI thread_get1(void* arg)
 	for(i=0; i<200000; i++)
 	{
 		sprintf(key,"key%06d",i);
-		data = sstmanager_get((sstmanager_t*)arg,key);
+		data = sstmanager_get((sstmanager_t*)arg,key,strlen(key));
 		if (data && strcmp(key,data->key) == 0)
 		{
 			count++;
@@ -103,7 +103,7 @@ DWORD WINAPI thread_get2(void* arg)
 	for(i=0; i<200000; i++)
 	{
 		sprintf(key,"key%06d",i);
-		data = sstmanager_get((sstmanager_t*)arg,key);
+		data = sstmanager_get((sstmanager_t*)arg,key,strlen(key));
 		if (data && strcmp(key,data->key) == 0)
 		{
 			count++;
@@ -154,7 +154,7 @@ int main()
 	for(i=0; i < 300000; i++)
 	{
 		sprintf(key,"key%06d",i);
-		data = sstmanager_get(manager,key);
+		data = sstmanager_get(manager,key,strlen(key));
 		if (data)
 		{
 			count++;

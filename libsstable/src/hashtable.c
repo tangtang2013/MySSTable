@@ -194,7 +194,7 @@ int hashtable_put( hashtable_t* htable,data_t* data )
 	return 0;
 }
 
-data_t* hashtable_get( hashtable_t* htable,const char* key )
+data_t* hashtable_get( hashtable_t* htable,const char* key,int keySize )
 {
 	size_t hashValue;
 	data_t* pBucket;
@@ -205,14 +205,14 @@ data_t* hashtable_get( hashtable_t* htable,const char* key )
 		return NULL;
 	}
 
-	hashValue = PMurHash32(0,key,strlen(key));
+	hashValue = PMurHash32(0,key,keySize);
 	hashlock = htable->bucket_locks[hashValue % htable->bucket_szie];
 
 	TakeLock(hashlock);	//Lock
 	pBucket = htable->buckets[hashValue % htable->bucket_szie];
 
 
-	while(pBucket && 0 != CmpKey(pBucket->key, pBucket->key_len, key, strlen(key)))
+	while(pBucket && 0 != CmpKey(pBucket->key, pBucket->key_len, key, keySize))
 	{
 		pBucket = pBucket->next;
 	}

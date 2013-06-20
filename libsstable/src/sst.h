@@ -40,7 +40,7 @@ void sst_close(sstable_t* sst);
 void sst_flush(sstable_t* sst);
 
 int sst_put(sstable_t* sst,data_t* data);
-data_t* sst_get(sstable_t* sst,const char* key);
+data_t* sst_get(sstable_t* sst,const char* key,int keySize);
 
 void sst_precompact(sstable_t* sst);
 int sst_compactput(sstable_t* sst,data_t* data);

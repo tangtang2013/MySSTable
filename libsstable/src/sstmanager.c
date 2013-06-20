@@ -324,7 +324,7 @@ REPEAT:
 	}
 }
 
-data_t* sstmanager_get( sstmanager_t* manager,const char* key )
+data_t* sstmanager_get( sstmanager_t* manager,const char* key,int keySize )
 {
 	int i = manager->sst_num - 1;
 	sstable_t* pos;
@@ -332,7 +332,7 @@ data_t* sstmanager_get( sstmanager_t* manager,const char* key )
 	pos = manager->uncompact;
 	while (pos && pos->status != SNULL && i >= 0)
 	{
-		data = sst_get(pos,key);
+		data = sst_get(pos,key,keySize);
 		if (data)
 		{
 			break;

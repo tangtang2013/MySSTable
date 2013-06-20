@@ -36,8 +36,8 @@ void hashtable_free(hashtable_t* htable);
 void hashtable_build(hashtable_t* htable);
 void hashtable_flush(hashtable_t* htable);
 int hashtable_put(hashtable_t* htable,data_t* data);
-data_t* hashtable_get(hashtable_t* htable,const char* key);
-int hashtable_del(hashtable_t* htable,const char* key);
+data_t* hashtable_get(hashtable_t* htable,const char* key,int keySize);
+int hashtable_del(hashtable_t* htable,const char* key,int keySize);
 
 int hashtable_compactput(hashtable_t* htable,data_t* data);
 void hashtable_relasedata(hashtable_t* htable);

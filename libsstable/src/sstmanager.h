@@ -98,7 +98,7 @@ int sstmanager_put(sstmanager_t* manager,data_t* data);
 * @param:	sstmanager_t*,data_t*
 * @ret:		int
 *************************************/
-data_t* sstmanager_get(sstmanager_t* manager,const char* key);
+data_t* sstmanager_get(sstmanager_t* manager,const char* key,int keySize);
 
 /************************************
 * @name:	sstmanager_compact

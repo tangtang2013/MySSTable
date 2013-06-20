@@ -98,7 +98,7 @@ int sst_put(sstable_t* sst,data_t* data)
 	return ret;
 }
 
-data_t* sst_get(sstable_t* sst,const char* key)
+data_t* sst_get(sstable_t* sst,const char* key,int keySize)
 {
 	if (sst->status == COMPACT || sst->status == COMPACTED)
 	{
@@ -108,7 +108,7 @@ data_t* sst_get(sstable_t* sst,const char* key)
 	{
 		sst_open(sst,READ);
 	}
-    return hashtable_get(sst->htable,key);
+    return hashtable_get(sst->htable,key,keySize);
 }
 
 int sst_compactput(sstable_t* sst,data_t* data)
