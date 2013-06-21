@@ -92,7 +92,7 @@ void* GetRequestHandler(uv_buf_t* uvBuf)
 	pReply = CreateMsgGetReplySt(0, pData);			//test ...
 	pRetBuffer = CreateMsgGetReplyBuf(pReply);
 
-	free(pData);
+//	free(pData);
 	free(pReply);
 	free(pRequest);
 
