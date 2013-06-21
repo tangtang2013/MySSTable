@@ -1,5 +1,5 @@
-#ifndef _LIBNET_CLIENT_H_
-#define _LIBNET_CLIENT_H_
+#ifndef _LIBNET_CLIENTBASE_H_
+#define _LIBNET_CLIENTBASE_H_
 
 #include <stdio.h>
 #include <common.h>
@@ -26,6 +26,6 @@ void InitClientBase(stClientBase* pClient);
 void Connect(stClientBase* pClient);
 void DisConnect(stClientBase* pClient);
 void DestroyClientBase(stClientBase* pClient);
-void* SendBase(stClientBase* pClient, char* pBuffer, int nSize);
+void SendBase(stClientBase* pClient, char* pBuffer, int nSize);
 
 #endif

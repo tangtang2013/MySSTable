@@ -60,11 +60,14 @@ void DestroyClientBase(stClientBase* pClient)
 		free(pClient);
 }
 
-void* SendBase(stClientBase* pClient, char* pBuffer, int nSize)
+void SendBase(stClientBase* pClient, char* pBuffer, int nSize)
 {
 	int ret;
 	int index = 0;
 	uv_tcp_t* pServer;
+
+	fd_set rfds;
+	struct timeval tv = {2,0};
 
     write_req_t *req = (write_req_t*) malloc(sizeof(write_req_t));
 
@@ -75,10 +78,26 @@ void* SendBase(stClientBase* pClient, char* pBuffer, int nSize)
 
 	//Recv
 	pServer = (uv_tcp_t*)pClient->uvConnect.handle;
-	while( (ret = recv(pServer->socket,pClient->pBuffer + index, pClient->nBufferMaxSize, 0)) > 0)
+
+	FD_ZERO(&rfds);
+	FD_SET(pServer->socket,&rfds);
+	if(select(pServer->socket+1, &rfds, NULL, NULL,&tv) == -1)
 	{
-		index += ret;
+		//NETWORK error
+		fprintf(stderr,"select error code : [%d]\n",GetLastError());
 	}
+
+	while(1)
+	{
+		ret = recv(pServer->socket,pClient->pBuffer + index, pClient->nBufferMaxSize, 0);
+		if(ret > 0)
+			index += ret;
+		else if(ret == 0)
+			break;
+		else if(ret == -1)
+			break;
+	}
+	//fprintf(stderr,"error code : [%d]\n",GetLastError());
 	pClient->nBufferSize = index;
 }
 
