@@ -130,7 +130,14 @@ stMsgPutReply* ParseMsgPutReplyBuf( uv_buf_t* uvBuf )
 	int offset = 0;
 	int nRet = 0;
 	eMsgType type;
-	stMsgPutReply* pMsgPut = malloc(sizeof(stMsgPutReply));
+	stMsgPutReply* pMsgPut;
+
+	if(uvBuf->len <= 0)
+	{
+		return NULL;
+	}
+
+	pMsgPut = malloc(sizeof(stMsgPutReply));
 
 	memcpy(&type, uvBuf->base + offset, sizeof(eMsgType));
 	offset += sizeof(eMsgType);
@@ -322,6 +329,11 @@ stMsgGetReply* ParseMsgGetReplyBuf( uv_buf_t* uvBuf )
 	int nValueSize = 0;
 	eMsgType type;
 	stMsgGetReply* pMsgGet;
+
+	if(uvBuf->len <= 0)
+	{
+		return NULL;
+	}
 
 	memcpy(&type, uvBuf->base + offset, sizeof(eMsgType));
 	offset += sizeof(eMsgType);
