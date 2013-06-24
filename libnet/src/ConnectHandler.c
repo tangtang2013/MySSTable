@@ -21,6 +21,7 @@ stConnectHandler* InitConnectHandler(int nThreadNum, stServer* server, MsgHandle
 	pConnectHandler->pWorkList = NULL;
 	pConnectHandler->nWorkNum = 0;
 
+	pConnectHandler->loop = uv_loop_new();
 	uv_mutex_init(&pConnectHandler->uvMutex);
 	uv_cond_init(&pConnectHandler->uvCond);
 
@@ -39,6 +40,7 @@ void StartHandler(stConnectHandler* pConnectHandler)
 	{
 		uv_thread_create(&pConnectHandler->pHandlers[i].thread,ThreadFunc,pConnectHandler);
 	}
+	uv_run(pConnectHandler->loop, UV_RUN_DEFAULT);
 }
 
 void StopHandler(stConnectHandler* pConnectHandler)
@@ -160,7 +162,6 @@ void ThreadFunc(void* pParam)
 		uv_mutex_unlock(&pConnectHandler->uvMutex);
 
 		//TODO(work handler)
-		fprintf(stderr,"-%s\n",pWork->pBuffer);
 		Handler(pConnectHandler, pWork);
 		DeleteWork(pWork);
 		pWork = NULL;
@@ -171,7 +172,7 @@ void DeleteWork(stWork* pWork)
 {
 	//uv_close((uv_handle_t*)pWork->client, NULL);
 	free(pWork);
-	fprintf(stderr,"DeleteWork\n");
+	//fprintf(stderr,"DeleteWork\n");
 }
 
 void write_cb(uv_write_t *req, int status) {
@@ -183,15 +184,52 @@ void write_cb(uv_write_t *req, int status) {
 void Handler(stConnectHandler* pConnectHandler, stWork* pWork)
 {
 	int ret;
+	int len = 0;
+	int pos = 0;
 	int nBufferSize = 0;
 	char* pBuffer = NULL;
+
+	fd_set rfds;
+	struct timeval tv = {2,0};
+
     write_req_t *req;
+	uv_tcp_t* pClient = (uv_tcp_t*)pWork->client;
 
 	req = (*pConnectHandler->funcMsgHandler)(pWork->pBuffer, pWork->nBufferLen);
-
-	ret = uv_write((uv_write_t*)req, (uv_stream_t*)pWork->client, &req->buf, 1, write_cb);
+	//fprintf(stderr,"addr: %x size[%d]\n",pWork->client,pWork->client->write_queue_size);
+	//ret = uv_write((uv_write_t*)req, (uv_stream_t*)pWork->client, &req->buf, 1, write_cb);
 	//on_file_write(req,1);
 	//fprintf(stderr,"uv_write ret : %d\n",ret);
+
+	len = req->buf.len;
+	while(len > 0)
+	{
+		ret = send(pClient->socket, req->buf.base + pos, len, 0);
+		if(ret > 0)
+		{
+			len -= ret;
+			pos += ret;
+		}
+		else if(ret == 0)
+		{
+			break;
+		}
+		else
+		{
+			//TODO
+			FD_ZERO(&rfds);
+			FD_SET(pClient->socket,&rfds);
+			if(select(pClient->socket+1, &rfds, NULL, NULL,NULL) == -1)
+			{
+				//NETWORK error
+				fprintf(stderr,"select error code : [%d]\n",GetLastError());
+			}
+		}
+	}
+
+	//FREE
+	free(req->buf.base);
+	free(req);
 }
 
 write_req_t* MsgHandler_Default(char* pInBuffer, int nInBufferSize)

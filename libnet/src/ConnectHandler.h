@@ -23,6 +23,7 @@ typedef struct ln_Handler
 //---
 typedef struct ln_ConnectHandler
 {
+	uv_loop_t* loop;
 	int nThreadNum;
 	stHandler* pHandlers;
 
